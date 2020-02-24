@@ -1,36 +1,48 @@
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 
 main_layout = html.Div([
-    dcc.Link('Go to page 1', href='/app1'),
-    html.Br(),
-    dcc.Link('Go to page 2', href='/app2'),
+    html.H5('eICU mortality prediction with LSTM model',
+            style={'marginTop': '1em', 'marginLeft': '2em', 'marginRight': '2em', 'textAlign': 'center'}),
+    dbc.CardDeck([
+        dbc.Card([
+            dbc.CardHeader('Performance'),
+            dbc.CardBody([
+                    dbc.Button('Expand', className='mt-auto', href='/performance'),
+            ])
+        ], style={'minHeight': '20em'}),
+        dbc.Card([
+            dbc.CardHeader('Demographics'),
+            dbc.CardBody([
+                    dbc.Button('Expand', className='mt-auto', href='/demographics'),
+            ])
+        ], style={'minHeight': '20em'}),
+    ], style={'margin': '2em'}),
+    dbc.CardDeck([
+        dbc.Card([
+            dbc.CardHeader('Feature importance'),
+            dbc.CardBody([
+                    dbc.Button('Expand', className='mt-auto', href='/feature-importance'),
+            ])
+        ], style={'minHeight': '20em'}),
+        dbc.Card([
+            dbc.CardHeader('Detailed analysis'),
+            dbc.CardBody([
+                    dbc.Button('Expand', className='mt-auto', href='/detailed-analysis'),
+            ])
+        ], style={'minHeight': '20em'})
+    ], style={'marginLeft': '2em', 'marginRight': '2em', 'marginBottom': '2m'})
 ])
 
-layout1 = html.Div([
-    html.H3('App 1'),
-    dcc.Dropdown(
-        id='app-1-dropdown',
-        options=[
-            {'label': 'App 1 - {}'.format(i), 'value': i} for i in [
-                'NYC', 'MTL', 'LA'
-            ]
-        ]
-    ),
-    html.Div(id='app-1-display-value'),
-    dcc.Link('Go to App 2', href='/app2')
-])
+# [TODO]
+# performance_layout =
 
-layout2 = html.Div([
-    html.H3('App 2'),
-    dcc.Dropdown(
-        id='app-2-dropdown',
-        options=[
-            {'label': 'App 2 - {}'.format(i), 'value': i} for i in [
-                'NYC', 'MTL', 'LA'
-            ]
-        ]
-    ),
-    html.Div(id='app-2-display-value'),
-    dcc.Link('Go to App 1', href='/app1')
-])
+# [TODO]
+# demographics_layout =
+
+# [TODO]
+# feat_import_layout =
+
+# [TODO]
+# detail_analysis_layout =
