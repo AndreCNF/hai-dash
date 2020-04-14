@@ -8,7 +8,7 @@ import callbacks
 app.layout = html.Div([
     dbc.NavbarSimple(
         children=[
-            dbc.NavItem(dbc.NavLink('Performance', href='/')),
+            dbc.NavItem(dbc.NavLink('Performance', href='/performance')),
             dbc.NavItem(dbc.NavLink('Demographics', href='/')),
             dbc.NavItem(dbc.NavLink('Feature importance', href='/')),
             dbc.NavItem(dbc.NavLink('Detailed analysis', href='/')),
