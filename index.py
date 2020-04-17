@@ -9,9 +9,9 @@ app.layout = html.Div([
     dbc.NavbarSimple(
         children=[
             dbc.NavItem(dbc.NavLink('Performance', href='/performance')),
-            dbc.NavItem(dbc.NavLink('Demographics', href='/')),
-            dbc.NavItem(dbc.NavLink('Feature importance', href='/')),
-            dbc.NavItem(dbc.NavLink('Detailed analysis', href='/')),
+            dbc.NavItem(dbc.NavLink('Dataset overview', href='/dataset-overview')),
+            dbc.NavItem(dbc.NavLink('Feature importance', href='/feature-importance')),
+            dbc.NavItem(dbc.NavLink('Detailed analysis', href='/detailed-analysis')),
             dbc.DropdownMenu(
                 children=[
                     dbc.DropdownMenuItem('More pages', header=True),
