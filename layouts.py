@@ -145,14 +145,23 @@ main_layout = html.Div([
     dbc.CardDeck([
         dbc.Card([
             dbc.CardBody([
-                    html.H5('Feature importance', className='card-title'),
-                    dbc.Button('Expand', className='mt-auto', href='/feature-importance'),
+                    html.H5('Detailed analysis', className='card-title'),
+                    dbc.Button('Expand', className='mt-auto', href='/detailed-analysis'),
             ])
         ], style=dict(height='20em')),
         dbc.Card([
             dbc.CardBody([
-                    html.H5('Detailed analysis', className='card-title'),
-                    dbc.Button('Expand', className='mt-auto', href='/detailed-analysis'),
+                    html.H5('Feature importance', className='card-title'),
+                    dcc.Graph(id='feature_importance_preview',
+                              config=dict(
+                                displayModeBar=False
+                              ),
+                              style=dict(
+                                height='10em',
+                                marginBottom='1em'
+                              )
+                    ),
+                    dbc.Button('Expand', className='mt-auto', href='/feature-importance'),
             ])
         ], style=dict(height='20em'))
     ], style=dict(
@@ -164,14 +173,10 @@ main_layout = html.Div([
 ])
 
 performance_layout = html.Div([
-    html.H5('Performance',
-            style=dict(
-                marginTop='1em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
-    ),
+    # Chosen dataset
+    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    # Chosen machine learning model
+    html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Dropdown(
         id='model_dropdown',
         options=[
@@ -190,13 +195,25 @@ performance_layout = html.Div([
             backgroundColor=colors['black'],
             textColor=colors['body_font_color'],
             fontColor=colors['body_font_color'],
+            marginTop='1em',
             marginLeft='2em',
             marginRight='2em'
         )
     ),
+    html.H5('Performance',
+            style=dict(
+                marginTop='0.5em',
+                marginLeft='2em',
+                marginRight='2em',
+                textAlign='center'
+            )
+    ),
     dbc.Card([
         dbc.CardBody([
-                html.H5('MF1-LSTM', className='card-title', style=dict(color=colors['header_font_color']))
+                html.H5('MF1-LSTM',
+                        id='model_perf_header',
+                        className='card-title',
+                        style=dict(color=colors['header_font_color']))
         ])
     ], color='primary', style=dict(height='5em', margin='2em')),
     dbc.CardDeck([
@@ -307,16 +324,12 @@ performance_layout = html.Div([
 
 # [TODO]
 dataset_overview_layout = html.Div([
-    html.H5('Dataset overview',
-            style=dict(
-                marginTop='1em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
-    ),
+    # Chosen dataset
+    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    # Chosen machine learning model
+    html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Dropdown(
-        # id='dataset_dropdown',
+        id='dataset_dropdown',
         options=[
             dict(label='eICU', value='eICU'),
             dict(label='ALS', value='ALS'),
@@ -330,10 +343,27 @@ dataset_overview_layout = html.Div([
             backgroundColor=colors['black'],
             textColor=colors['body_font_color'],
             fontColor=colors['body_font_color'],
+            marginTop='1em',
             marginLeft='2em',
             marginRight='2em'
         ),
     ),
+    html.H5('Dataset overview',
+            style=dict(
+                marginTop='0.5em',
+                marginLeft='2em',
+                marginRight='2em',
+                textAlign='center'
+            )
+    ),
+    dbc.Card([
+        dbc.CardBody([
+                html.H5('eICU',
+                        id='dataset_ovrvw_header',
+                        className='card-title',
+                        style=dict(color=colors['header_font_color']))
+        ])
+    ], color='primary', style=dict(height='5em', margin='2em')),
     dbc.Tabs([
         dbc.Tab(html.Div('Hello world!'), label='Size'),
         dbc.Tab(html.Div('Hello world!'), label='Demographics'),
