@@ -63,6 +63,7 @@ def change_dataset_header(dataset):
     shap_values = df[shap_column_names].to_numpy()
     return du.visualization.shap_summary_plot(shap_values, feature_names, max_display=3,
                                               background_color=layouts.colors['gray_background'],
+                                              marker_color=layouts.colors['blue'],
                                               output_type='plotly',
                                               font_family='Roboto', font_size=14,
                                               font_color=layouts.colors['body_font_color'],

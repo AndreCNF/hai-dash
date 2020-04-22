@@ -79,8 +79,8 @@ main_layout = html.Div([
         marginRight='2em',
         textAlign='center'
     )),
-    html.H5(f'eICU mortality prediction with LSTM model',
-            id='main-title',
+    html.H5('eICU mortality prediction with LSTM model',
+            id='main_title',
             style=dict(
                 marginTop='0.5em',
                 marginLeft='2em',
@@ -177,29 +177,33 @@ performance_layout = html.Div([
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
-    dcc.Dropdown(
-        id='model_dropdown',
-        options=[
-            dict(label='RNN', value='RNN'),
-            dict(label='LSTM', value='LSTM'),
-            dict(label='TLSTM', value='TLSTM'),
-            dict(label='MF1-LSTM', value='MF1-LSTM'),
-            dict(label='MF2-LSTM', value='MF2-LSTM'),
-        ],
-        placeholder='Choose a model',
-        searchable=False,
-        persistence=True,
-        persistence_type='session',
-        style=dict(
-            color=colors['black'],
-            backgroundColor=colors['black'],
-            textColor=colors['body_font_color'],
-            fontColor=colors['body_font_color'],
-            marginTop='1em',
-            marginLeft='2em',
-            marginRight='2em'
-        )
-    ),
+    html.Div([
+        dcc.Dropdown(
+            id='model_dropdown',
+            options=[
+                dict(label='RNN', value='RNN'),
+                dict(label='LSTM', value='LSTM'),
+                dict(label='TLSTM', value='TLSTM'),
+                dict(label='MF1-LSTM', value='MF1-LSTM'),
+                dict(label='MF2-LSTM', value='MF2-LSTM'),
+            ],
+            placeholder='Choose a model',
+            searchable=False,
+            persistence=True,
+            persistence_type='session',
+            style=dict(
+                color=colors['black'],
+                backgroundColor=colors['black'],
+                textColor=colors['body_font_color'],
+                fontColor=colors['body_font_color']
+            )
+        ),
+    ],
+    style=dict(
+        marginTop='1em',
+        marginLeft='2em',
+        marginRight='2em'
+    )),
     html.H5('Performance',
             style=dict(
                 marginTop='0.5em',
@@ -328,26 +332,30 @@ dataset_overview_layout = html.Div([
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
-    dcc.Dropdown(
-        id='dataset_dropdown',
-        options=[
-            dict(label='eICU', value='eICU'),
-            dict(label='ALS', value='ALS'),
-        ],
-        placeholder='Choose a dataset',
-        searchable=False,
-        persistence=True,
-        persistence_type='session',
-        style=dict(
-            color=colors['black'],
-            backgroundColor=colors['black'],
-            textColor=colors['body_font_color'],
-            fontColor=colors['body_font_color'],
-            marginTop='1em',
-            marginLeft='2em',
-            marginRight='2em'
+    html.Div([
+        dcc.Dropdown(
+            id='dataset_dropdown',
+            options=[
+                dict(label='eICU', value='eICU'),
+                dict(label='ALS', value='ALS'),
+            ],
+            placeholder='Choose a dataset',
+            searchable=False,
+            persistence=True,
+            persistence_type='session',
+            style=dict(
+                color=colors['black'],
+                backgroundColor=colors['black'],
+                textColor=colors['body_font_color'],
+                fontColor=colors['body_font_color']
+            ),
         ),
-    ),
+    ],
+    style=dict(
+        marginTop='1em',
+        marginLeft='2em',
+        marginRight='2em'
+    )),
     html.H5('Dataset overview',
             style=dict(
                 marginTop='0.5em',
@@ -372,7 +380,108 @@ dataset_overview_layout = html.Div([
 ])
 
 # [TODO]
-# feat_import_layout =
+feat_import_layout = html.Div([
+    # Chosen dataset
+    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    # Chosen machine learning model
+    html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dbc.Row([
+        dbc.Col(
+            dcc.Dropdown(
+                id='dataset_dropdown',
+                options=[
+                    dict(label='eICU', value='eICU'),
+                    dict(label='ALS', value='ALS')
+                ],
+                placeholder='Choose a dataset',
+                searchable=False,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=colors['black'],
+                    backgroundColor=colors['black'],
+                    textColor=colors['body_font_color'],
+                    fontColor=colors['body_font_color']
+                )
+            ),
+        width=6),
+        dbc.Col(
+            dcc.Dropdown(
+                id='model_dropdown',
+                options=[
+                    dict(label='RNN', value='RNN'),
+                    dict(label='LSTM', value='LSTM'),
+                    dict(label='TLSTM', value='TLSTM'),
+                    dict(label='MF1-LSTM', value='MF1-LSTM'),
+                    dict(label='MF2-LSTM', value='MF2-LSTM')
+                ],
+                placeholder='Choose a model',
+                searchable=False,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=colors['black'],
+                    backgroundColor=colors['black'],
+                    textColor=colors['body_font_color'],
+                    fontColor=colors['body_font_color']
+                )
+            ),
+        width=6)
+    ],
+    style=dict(
+        marginTop='1em',
+        marginLeft='2em',
+        marginRight='2em',
+        textAlign='center'
+    )),
+    html.H5('Feature importance',
+            style=dict(
+                marginTop='0.5em',
+                marginLeft='2em',
+                marginRight='2em',
+                textAlign='center'
+            )
+    ),
+    html.P(
+        'Select how the data is filtered:',
+        style=dict(
+            marginTop='1em',
+            marginLeft='2em',
+            marginRight='2em'
+        )),
+    html.Div([
+        dcc.Dropdown(
+            id='feature_importance_dropdown',
+            # [TODO] Add options dynamically, according to the dataset's categorical features
+            options=[
+                dict(label='All', value='All'),
+                dict(label='Sex', value='Sex'),
+                dict(label='Age', value='Age'),
+                dict(label='Diagnostic', value='Diagnostic'),
+                dict(label='Treatment', value='Treatment')
+            ],
+            placeholder='Choose how to filter the data',
+            searchable=False,
+            persistence=True,
+            persistence_type='session',
+            multi=True,
+            style=dict(
+                color=colors['black'],
+                backgroundColor=colors['black'],
+                textColor=colors['body_font_color'],
+                fontColor=colors['body_font_color']
+            )
+        ),
+    ],
+    style=dict(
+        marginTop='0.5em',
+        marginLeft='2em',
+        marginRight='2em'
+    )),
+    # [TODO] Create a CardColumns that dynamically outputs cards with feature
+    # importance for data filtered by the selected parameters
+    dbc.CardColumns(id='feature_importance_cards', children=[])
+])
 
 # [TODO]
 # detail_analysis_layout =
