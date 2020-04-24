@@ -455,12 +455,17 @@ feat_import_layout = html.Div([
             # [TODO] Add options dynamically, according to the dataset's categorical features
             options=[
                 dict(label='All', value='All'),
-                dict(label='Sex', value='Sex'),
-                dict(label='Age', value='Age'),
-                dict(label='Diagnostic', value='Diagnostic'),
-                dict(label='Treatment', value='Treatment')
+                dict(label='Var0', value='Var0'),
+                dict(label='Var4_a', value='Var4_a'),
+                dict(label='Var4_b', value='Var4_b'),
+                dict(label='Var4_c', value='Var4_c'),
+                # dict(label='Sex', value='Sex'),
+                # dict(label='Age', value='Age'),
+                # dict(label='Diagnostic', value='Diagnostic'),
+                # dict(label='Treatment', value='Treatment')
             ],
             placeholder='Choose how to filter the data',
+            value='All',
             searchable=False,
             persistence=True,
             persistence_type='session',
@@ -480,7 +485,14 @@ feat_import_layout = html.Div([
     )),
     # [TODO] Create a CardColumns that dynamically outputs cards with feature
     # importance for data filtered by the selected parameters
-    dbc.CardColumns(id='feature_importance_cards', children=[])
+    dbc.CardColumns(
+        id='feature_importance_cards',
+        children=[],
+        style=dict(
+            marginTop='1em',
+            marginLeft='2em',
+            marginRight='2em')
+    )
 ])
 
 # [TODO]
