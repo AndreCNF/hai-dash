@@ -4,11 +4,17 @@ import dash_html_components as html
 from dash.dependencies import Input, State, Output
 import pandas as pd
 import data_utils as du
+from model_interpreter.model_interpreter import ModelInterpreter
+import Models
 from app import app
 import layouts
 
 # [TODO] Replace with the real dataframe; this one's just a dummy one
 df = pd.read_csv('data/data_n_shap_df.csv')
+df = df.drop(columns='Unnamed: 0')
+# Read the machine learning model
+model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6107valloss_04_05_2020_20_25.pth', 
+                                         ModelClass=Models.TLSTM)
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -162,3 +168,31 @@ def output_feat_import_page_cards(data_filter):
     [cards_list.append(card) for fltr in filters
      for card in create_fltd_feat_import_cards(fltr)]
     return cards_list
+
+@app.callback(Output('detailed_analysis_preview', 'figure'),
+              [Input('dataset_name_div', 'children'),
+               Input('model_name_div', 'children')])
+def update_det_analysis_preview(dataset_name, model_name):
+    global df
+    global model
+    # Create a dataframe copy that doesn't include the feature importance columns
+    column_names = [feature for feature in df.columns
+                    if not feature.endswith('_shap')]
+    tmp_df = df.copy()
+    tmp_df = tmp_df[column_names]
+    # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
+    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
+    interpreter.interpret_model(instance_importance=True, feature_importance=False)
+    # Get the instance importance plot
+    # [TODO] Change the plot's background and font color
+    return interpreter.instance_importance_plot(interpreter.test_data, 
+                                                interpreter.inst_scores,
+                                                labels=interpreter.test_labels,
+                                                get_fig_obj=True,
+                                                show_title=False,
+                                                show_pred_prob=False,
+                                                show_colorbar=False,
+                                                max_seq=4,
+                                                background_color=layouts.colors['gray_background'],
+                                                font_family='Roboto', font_size=14,
+                                                font_color=layouts.colors['body_font_color'])

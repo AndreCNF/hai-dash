@@ -146,6 +146,15 @@ main_layout = html.Div([
         dbc.Card([
             dbc.CardBody([
                     html.H5('Detailed analysis', className='card-title'),
+                    dcc.Graph(id='detailed_analysis_preview',
+                              config=dict(
+                                displayModeBar=False
+                              ),
+                              style=dict(
+                                height='10em',
+                                marginBottom='1em'
+                              )
+                    ),
                     dbc.Button('Expand', className='mt-auto', href='/detailed-analysis'),
             ])
         ], style=dict(height='20em')),
