@@ -170,14 +170,14 @@ description = "A Python framework for building reactive web-apps. Developed by P
 name = "dash"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
-version = "1.11.0"
+version = "1.12.0"
 
 [package.dependencies]
 Flask = ">=1.0.2"
-dash-core-components = "1.9.1"
+dash-core-components = "1.10.0"
 dash-html-components = "1.0.3"
-dash-table = "4.6.2"
-dash_renderer = "1.4.0"
+dash-table = "4.7.0"
+dash_renderer = "1.4.1"
 flask-compress = "*"
 future = "*"
 plotly = "*"
@@ -206,7 +206,7 @@ description = "Core component suite for Dash"
 name = "dash-core-components"
 optional = false
 python-versions = "*"
-version = "1.9.1"
+version = "1.10.0"
 
 [[package]]
 category = "main"
@@ -222,7 +222,7 @@ description = "Front-end component renderer for Dash"
 name = "dash-renderer"
 optional = false
 python-versions = "*"
-version = "1.4.0"
+version = "1.4.1"
 
 [[package]]
 category = "main"
@@ -230,7 +230,7 @@ description = "Dash table"
 name = "dash-table"
 optional = false
 python-versions = "*"
-version = "4.6.2"
+version = "4.7.0"
 
 [[package]]
 category = "main"
@@ -279,6 +279,7 @@ tqdm = "^4.43.0"
 reference = "b7a6b283de94612fd7d8a769a596bbfa993a77cc"
 type = "git"
 url = "https://github.com/AndreCNF/data-utils.git"
+
 [[package]]
 category = "main"
 description = "Distributed scheduler for Dask"
@@ -657,6 +658,7 @@ tqdm = "^4.32"
 reference = "4f2884e7e18864cbddbc49c26d0a98352459395b"
 type = "git"
 url = "https://github.com/AndreCNF/model-interpreter.git"
+
 [[package]]
 category = "main"
 description = "Modin: Make your pandas code run faster by changing one line of code."
@@ -800,7 +802,7 @@ description = "An open-source, interactive graphing library for Python"
 name = "plotly"
 optional = false
 python-versions = "*"
-version = "4.6.0"
+version = "4.7.1"
 
 [package.dependencies]
 retrying = ">=1.3.3"
@@ -1326,7 +1328,7 @@ version = "1.0.0"
 heapdict = "*"
 
 [metadata]
-content-hash = "86d427e985eabe5b55467a2090bd972682202496a593bbcdaaeae558eae9dc38"
+content-hash = "d1c0c9e4c51dd5e59cebe905fc6efae924cde42800c3366694a3a5461c551a0c"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -1399,22 +1401,22 @@ comet-ml = [
     {file = "comet_ml-3.1.5.tar.gz", hash = "sha256:067564667b52f82df6128309e3565e20357c9b71c1f9be263bd3db2851da5c71"},
 ]
 dash = [
-    {file = "dash-1.11.0.tar.gz", hash = "sha256:57e32410a4f0f9fef0cdcd61f801bd01738f343ad308fa51592859ef9bc5c5ad"},
+    {file = "dash-1.12.0.tar.gz", hash = "sha256:aa9bed7b7d85b9bdf4ac1669d206a86024098d1b2b3a88b0bce12012979939a5"},
 ]
 dash-bootstrap-components = [
     {file = "dash-bootstrap-components-0.8.3.tar.gz", hash = "sha256:0715f74355cdb44fb4d017bee9dea2e139314b33bbd4a37dff624bee045325d6"},
 ]
 dash-core-components = [
-    {file = "dash_core_components-1.9.1.tar.gz", hash = "sha256:ea72f514d841caa1b42a1c6092d00c05cc63768916d33563e994114c1a022656"},
+    {file = "dash_core_components-1.10.0.tar.gz", hash = "sha256:30b90cf43da5ed1a8cd08bb23ee90fb9930b534856672906541cac014fed1baf"},
 ]
 dash-html-components = [
     {file = "dash_html_components-1.0.3.tar.gz", hash = "sha256:dafb54ae8ab601fffe50c74d72b32783dec2beea65fd1c7e7dd6a66e20e545ba"},
 ]
 dash-renderer = [
-    {file = "dash_renderer-1.4.0.tar.gz", hash = "sha256:c56e57f0b55ff0d7bb0f4df71060879460b2d22387fe01394fa84f85c71f66ed"},
+    {file = "dash_renderer-1.4.1.tar.gz", hash = "sha256:bbb23ba60014924225cb7385d73619843050c363d96486a3cb14ea6fca39d485"},
 ]
 dash-table = [
-    {file = "dash_table-4.6.2.tar.gz", hash = "sha256:5ceabd434bc63a9d1aa5bf4f00b55d2e5342072e274f0ee6fc53bc58bef4c1c2"},
+    {file = "dash_table-4.7.0.tar.gz", hash = "sha256:5512ef89d8106dd87dd9a5c604687f08bf6ae4c37a33e6aa472c2b7d25c6a755"},
 ]
 dask = [
     {file = "dask-2.11.0-py3-none-any.whl", hash = "sha256:86324c92b4f7f64cc596673de1ab2297393415a85554417c577b5d1cb1a0d91e"},
@@ -1756,8 +1758,8 @@ pillow = [
     {file = "Pillow-7.0.0.tar.gz", hash = "sha256:4d9ed9a64095e031435af120d3c910148067087541131e82b3e8db302f4c8946"},
 ]
 plotly = [
-    {file = "plotly-4.6.0-py2.py3-none-any.whl", hash = "sha256:ac0ca0854350bfcd833f3a8eb08aa50e184660502bb46fe907701f896ff349bd"},
-    {file = "plotly-4.6.0.tar.gz", hash = "sha256:61f34955f04201a1ebcd59feaafa7eae7c16ef9b3f439870be01fb85a949292f"},
+    {file = "plotly-4.7.1-py2.py3-none-any.whl", hash = "sha256:ad0adf659ae88caf09d94a97b7ae1272b0868b30147cccf43caae7fae49a6f45"},
+    {file = "plotly-4.7.1.tar.gz", hash = "sha256:7a48cdedd13cef6745de5527d26928791f1b911b88c435667b74eadd427a10e8"},
 ]
 portray = [
     {file = "portray-1.3.1-py3-none-any.whl", hash = "sha256:ac1a651f97ab04556732b64fdb10dcba4f9a006dd023471039743b16d28a7a61"},

@@ -184,7 +184,6 @@ def update_det_analysis_preview(dataset_name, model_name):
     interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
-    # [TODO] Change the plot's background and font color
     return interpreter.instance_importance_plot(interpreter.test_data, 
                                                 interpreter.inst_scores,
                                                 labels=interpreter.test_labels,
@@ -193,6 +192,61 @@ def update_det_analysis_preview(dataset_name, model_name):
                                                 show_pred_prob=False,
                                                 show_colorbar=False,
                                                 max_seq=4,
+                                                background_color=layouts.colors['gray_background'],
+                                                font_family='Roboto', font_size=14,
+                                                font_color=layouts.colors['body_font_color'])
+
+@app.callback(Output('instance_importance_graph', 'figure'),
+              [Input('dataset_name_div', 'children'),
+               Input('model_name_div', 'children')])
+def update_full_inst_import(dataset_name, model_name):
+    global df
+    global model
+    # Create a dataframe copy that doesn't include the feature importance columns
+    column_names = [feature for feature in df.columns
+                    if not feature.endswith('_shap')]
+    tmp_df = df.copy()
+    tmp_df = tmp_df[column_names]
+    # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
+    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
+    interpreter.interpret_model(instance_importance=True, feature_importance=False)
+    # Get the instance importance plot
+    return interpreter.instance_importance_plot(interpreter.test_data, 
+                                                interpreter.inst_scores,
+                                                labels=interpreter.test_labels,
+                                                get_fig_obj=True,
+                                                show_title=False,
+                                                show_pred_prob=False,
+                                                show_colorbar=False,
+                                                max_seq=10,
+                                                background_color=layouts.colors['gray_background'],
+                                                font_family='Roboto', font_size=14,
+                                                font_color=layouts.colors['body_font_color'])
+
+# [TODO]
+@app.callback(Output('impactful_features_list', 'children'),
+              [Input('dataset_name_div', 'children'),
+               Input('model_name_div', 'children')])
+def update_most_salient_features(dataset_name, model_name):
+    global df
+    global model
+    # Create a dataframe copy that doesn't include the feature importance columns
+    column_names = [feature for feature in df.columns
+                    if not feature.endswith('_shap')]
+    tmp_df = df.copy()
+    tmp_df = tmp_df[column_names]
+    # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
+    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
+    interpreter.interpret_model(instance_importance=True, feature_importance=False)
+    # Get the instance importance plot
+    return interpreter.instance_importance_plot(interpreter.test_data, 
+                                                interpreter.inst_scores,
+                                                labels=interpreter.test_labels,
+                                                get_fig_obj=True,
+                                                show_title=False,
+                                                show_pred_prob=False,
+                                                show_colorbar=False,
+                                                max_seq=10,
                                                 background_color=layouts.colors['gray_background'],
                                                 font_family='Roboto', font_size=14,
                                                 font_color=layouts.colors['body_font_color'])

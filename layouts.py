@@ -492,7 +492,7 @@ feat_import_layout = html.Div([
         marginLeft='2em',
         marginRight='2em'
     )),
-    # [TODO] Create a CardColumns that dynamically outputs cards with feature
+    # Create a CardColumns that dynamically outputs cards with feature
     # importance for data filtered by the selected parameters
     dbc.CardColumns(
         id='feature_importance_cards',
@@ -505,4 +505,152 @@ feat_import_layout = html.Div([
 ])
 
 # [TODO]
-# detail_analysis_layout =
+detail_analysis_layout = html.Div([
+    # Chosen dataset
+    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    # Chosen machine learning model
+    html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dbc.Row([
+        dbc.Col(
+            dcc.Dropdown(
+                id='dataset_dropdown',
+                options=[
+                    dict(label='eICU', value='eICU'),
+                    dict(label='ALS', value='ALS')
+                ],
+                placeholder='Choose a dataset',
+                searchable=False,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=colors['black'],
+                    backgroundColor=colors['black'],
+                    textColor=colors['body_font_color'],
+                    fontColor=colors['body_font_color']
+                )
+            ),
+        width=6),
+        dbc.Col(
+            dcc.Dropdown(
+                id='model_dropdown',
+                options=[
+                    dict(label='RNN', value='RNN'),
+                    dict(label='LSTM', value='LSTM'),
+                    dict(label='TLSTM', value='TLSTM'),
+                    dict(label='MF1-LSTM', value='MF1-LSTM'),
+                    dict(label='MF2-LSTM', value='MF2-LSTM')
+                ],
+                placeholder='Choose a model',
+                searchable=False,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=colors['black'],
+                    backgroundColor=colors['black'],
+                    textColor=colors['body_font_color'],
+                    fontColor=colors['body_font_color']
+                )
+            ),
+        width=6)
+    ],
+    style=dict(
+        marginTop='1em',
+        marginLeft='2em',
+        marginRight='2em',
+        textAlign='center'
+    )),
+    html.H5('Detailed analysis',
+            style=dict(
+                marginTop='0.5em',
+                marginLeft='2em',
+                marginRight='2em',
+                textAlign='center'
+            )
+    ),
+    # [TODO] Add dynamic options to filter the data
+    dbc.Card([
+            dbc.CardBody([
+                    html.H5('Instance importance on all patients\' time series', className='card-title'),
+                    dcc.Graph(id='instance_importance_graph',
+                              config=dict(
+                                displayModeBar=False
+                              ),
+                              style=dict(
+                                height='24em',
+                                marginBottom='1em'
+                              )
+                    ),
+            ])
+        ], style=dict(
+               height='30.5em',
+               marginTop='1em',
+               marginLeft='2em',
+               marginRight='2em'
+           )
+    ),
+    dbc.CardColumns(
+        children=[
+            dbc.Card([
+                dbc.CardBody([
+                        # [TODO] Update the patient ID in this card's title according to the selected data point
+                        html.H5('Patient Y\'s most impactful features', className='card-title',
+                                id='impactful_features_card_title'),
+                        dbc.ListGroup(id='impactful_features_list',
+                                      children=[],
+                                      style=dict(
+                                          height='20em',
+                                          marginBottom='1em'
+                                      )
+                        ),
+                ])
+            ], style=dict(height='26em')),
+            dbc.Card([
+                dbc.CardBody([
+                        # [TODO] Update the timestamp in this card's title according to the selected data point
+                        html.H5('Feature importance on ts=X', className='card-title',
+                                id='ts_feature_importance_card_title'),
+                        dcc.Graph(id='ts_feature_importance_graph',
+                                  config=dict(
+                                      displayModeBar=False
+                                  ),
+                                  style=dict(
+                                      height='20em',
+                                      marginBottom='1em'
+                                  )
+                        ),
+                ])
+            ], style=dict(height='26em')),
+            dbc.Card([
+                dbc.CardBody([
+                        html.H5('Patient survives',
+                                id='patient_outcome_text',
+                                className='card-title',
+                                style=dict(color=colors['header_font_color']))
+                ])
+            # [TODO] Change the card's color between "success" and "danger", according to the outcome
+            ], id='patient_outcome_card', color='success', style=dict(height='5em'
+            # , margin='2em'
+            )),
+            dbc.Card([
+                dbc.CardBody([
+                        html.H5('Final output', className='card-title'),
+                        du.visualization.indicator_plot(95, type='bullet', background_color=colors['gray_background'],
+                                                        dash_id='final_output_graph',
+                                                        font_color=colors['header_font_color'],
+                                                        font_size=20,
+                                                        prefix='0.', output_type='dash',
+                                                        dash_height='5em')
+                ])
+            ], style=dict(height='12em')),
+            # [TODO] Create a part that allows editing the selected sample and see its effect;
+            # this button should redirect to that part
+            dbc.Button('Edit sample', className='mt-auto', size='lg', block=True)
+            # href='/performance'),
+        ],
+        style=dict(
+            marginTop='1em',
+            marginLeft='2em',
+            marginRight='2em'
+        )
+    )
+])
