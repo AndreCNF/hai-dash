@@ -15,6 +15,8 @@ df = df.drop(columns='Unnamed: 0')
 # Read the machine learning model
 model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6107valloss_04_05_2020_20_25.pth', 
                                          ModelClass=Models.TLSTM)
+# [TODO] Load the SHAP interpreter's expected value on the current model and dataset
+expected_value = 0.5
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -249,3 +251,35 @@ def update_most_salient_features(dataset_name, model_name):
                                                   font_color=layouts.colors['body_font_color'],
                                                   dash_height=None,
                                                   dash_width=None)
+
+@app.callback(Output('ts_feature_importance_graph', 'figure'),
+              [Input('dataset_name_div', 'children'),
+               Input('model_name_div', 'children')])
+def update_ts_feat_import(dataset_name, model_name):
+    global df
+    global model
+    global expected_value
+    # [TODO] Filter by the selected data point
+    filtered_df = df.copy()
+    filtered_df = filtered_df.iloc[0]
+    # Get the SHAP and feature values into separate NumPy arrays
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    shap_values = filtered_df[shap_column_names].to_numpy()
+    features = filtered_df[feature_names].to_numpy()
+    # Get the instance importance plot
+    return du.visualization.shap_waterfall_plot(expected_value, shap_values, features, feature_names,
+                                                max_display=6, 
+                                                background_color=layouts.colors['gray_background'],
+                                                line_color=layouts.colors['body_font_color'], 
+                                                increasing_color=layouts.colors['red'],
+                                                decreasing_color=layouts.colors['blue'],
+                                                font_family='Roboto', 
+                                                font_size=14,
+                                                font_color=layouts.colors['body_font_color'],
+                                                output_type='plotly',
+                                                dash_height=None,
+                                                dash_width=None,
+                                                expected_value_ind_height=0,
+                                                output_ind_height=10)
