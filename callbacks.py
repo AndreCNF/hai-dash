@@ -64,10 +64,12 @@ def change_title(dataset_name, model_name):
 # Plotting
 def create_feat_import_plot(df, max_display=None,
                             xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)'):
+    # Get the SHAP values into a NumPy array and the feature names
     shap_column_names = [feature for feature in df.columns
                          if feature.endswith('_shap')]
     feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
     shap_values = df[shap_column_names].to_numpy()
+    # Generate the SHAP summary plot
     figure = du.visualization.shap_summary_plot(shap_values, feature_names,
                                                 max_display=max_display,
                                                 background_color=layouts.colors['gray_background'],
@@ -223,30 +225,27 @@ def update_full_inst_import(dataset_name, model_name):
                                                 font_family='Roboto', font_size=14,
                                                 font_color=layouts.colors['body_font_color'])
 
-# [TODO]
-@app.callback(Output('impactful_features_list', 'children'),
+@app.callback(Output('salient_features_list', 'children'),
               [Input('dataset_name_div', 'children'),
                Input('model_name_div', 'children')])
 def update_most_salient_features(dataset_name, model_name):
     global df
     global model
-    # Create a dataframe copy that doesn't include the feature importance columns
-    column_names = [feature for feature in df.columns
-                    if not feature.endswith('_shap')]
-    tmp_df = df.copy()
-    tmp_df = tmp_df[column_names]
-    # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
-    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
-    interpreter.interpret_model(instance_importance=True, feature_importance=False)
+    # [TODO] Filter by the selected data point's corresponding patient
+    # Get the SHAP and feature values into separate NumPy arrays
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    shap_values = df[shap_column_names].to_numpy()
+    features = df[feature_names].to_numpy()
     # Get the instance importance plot
-    return interpreter.instance_importance_plot(interpreter.test_data, 
-                                                interpreter.inst_scores,
-                                                labels=interpreter.test_labels,
-                                                get_fig_obj=True,
-                                                show_title=False,
-                                                show_pred_prob=False,
-                                                show_colorbar=False,
-                                                max_seq=10,
-                                                background_color=layouts.colors['gray_background'],
-                                                font_family='Roboto', font_size=14,
-                                                font_color=layouts.colors['body_font_color'])
+    return du.visualization.shap_salient_features(shap_values, features, feature_names,
+                                                  max_display=6,
+                                                  background_color=layouts.colors['gray_background'],
+                                                  increasing_color='danger',
+                                                  decreasing_color='primary',
+                                                  font_family='Roboto', 
+                                                  font_size=14,
+                                                  font_color=layouts.colors['body_font_color'],
+                                                  dash_height=None,
+                                                  dash_width=None)

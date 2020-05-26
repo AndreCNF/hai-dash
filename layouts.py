@@ -593,9 +593,9 @@ detail_analysis_layout = html.Div([
             dbc.Card([
                 dbc.CardBody([
                         # [TODO] Update the patient ID in this card's title according to the selected data point
-                        html.H5('Patient Y\'s most impactful features', className='card-title',
-                                id='impactful_features_card_title'),
-                        dbc.ListGroup(id='impactful_features_list',
+                        html.H5('Patient Y\'s most salient features', className='card-title',
+                                id='salient_features_card_title'),
+                        dbc.ListGroup(id='salient_features_list',
                                       children=[],
                                       style=dict(
                                           height='20em',
