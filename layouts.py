@@ -504,7 +504,6 @@ feat_import_layout = html.Div([
     )
 ])
 
-# [TODO]
 detail_analysis_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
@@ -634,12 +633,15 @@ detail_analysis_layout = html.Div([
             dbc.Card([
                 dbc.CardBody([
                         html.H5('Final output', className='card-title'),
-                        du.visualization.indicator_plot(95, type='bullet', background_color=colors['gray_background'],
-                                                        dash_id='final_output_graph',
-                                                        font_color=colors['header_font_color'],
-                                                        font_size=20,
-                                                        prefix='0.', output_type='dash',
-                                                        dash_height='5em')
+                        dcc.Graph(id='final_output_graph',
+                                  config=dict(
+                                      displayModeBar=False
+                                  ),
+                                  style=dict(
+                                      height='5em',
+                                    #   marginBottom='1em'
+                                  )
+                        ),
                 ])
             ], style=dict(height='12em')),
             # [TODO] Create a part that allows editing the selected sample and see its effect;

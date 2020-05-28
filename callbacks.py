@@ -6,6 +6,7 @@ import pandas as pd
 import data_utils as du
 from model_interpreter.model_interpreter import ModelInterpreter
 import Models
+import torch
 from app import app
 import layouts
 
@@ -17,6 +18,12 @@ model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6107vallo
                                          ModelClass=Models.TLSTM)
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
+# [TODO] Set and update the ID column name based on the chosen dataset
+id_column = 'subject_id'
+# [TODO] Set and update whether the model is from a custom type or not
+is_custom = False
+# The columns to remove from the data so that the model can use it
+cols_to_remove = [0, 1]
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -62,6 +69,43 @@ def change_dataset_header(dataset):
                Input('model_name_div', 'children')])
 def change_title(dataset_name, model_name):
     return f'{dataset_name} mortality prediction with {model_name} model'
+
+# Detailed analysis strings
+@app.callback(Output('salient_features_card_title', 'children'),
+              [Input('instance_importance_graph', 'hoverData')])
+def update_patient_salient_feat_title(hovered_data):
+    # Get the selected data point's unit stay ID
+    patient_unit_stay_id = hovered_data['points'][0]['y']
+    return f'Patient {patient_unit_stay_id}\'s salient features'
+
+@app.callback(Output('ts_feature_importance_card_title', 'children'),
+              [Input('instance_importance_graph', 'hoverData')])
+def update_ts_feat_import_title(hovered_data):
+    # Get the selected data point's timestamp
+    ts = hovered_data['points'][0]['x']
+    return f'Feature importance on ts={ts}'
+
+@app.callback([Output('patient_outcome_text', 'children'),
+               Output('patient_outcome_card', 'color')],
+              [Input('instance_importance_graph', 'hoverData')])
+def update_patient_outcome(hovered_data):
+    global df
+    global id_column
+    # Get the selected data point's unit stay ID
+    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    # Filter by the selected data point
+    filtered_df = df.copy()
+    # [TODO] Use the right ID column according to the used dataset
+    filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
+    # Find if the patient dies
+    patient_dies = (filtered_df.tail(1).label == 1).values[0]
+    if patient_dies == True:
+        outcome = 'Patient dies'
+        card_color = 'danger'
+    else:
+        outcome = 'Patient survives'
+        card_color = 'success'
+    return outcome, card_color
 
 # Plotting
 def create_feat_import_plot(df, max_display=None,
@@ -228,18 +272,24 @@ def update_full_inst_import(dataset_name, model_name):
                                                 font_color=layouts.colors['body_font_color'])
 
 @app.callback(Output('salient_features_list', 'children'),
-              [Input('dataset_name_div', 'children'),
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('dataset_name_div', 'children'),
                Input('model_name_div', 'children')])
-def update_most_salient_features(dataset_name, model_name):
+def update_most_salient_features(hovered_data, dataset_name, model_name):
     global df
     global model
-    # [TODO] Filter by the selected data point's corresponding patient
+    # Get the selected data point's unit stay ID
+    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    # Filter by the selected data point
+    filtered_df = df.copy()
+    # [TODO] Use the right ID column according to the used dataset
+    filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
     # Get the SHAP and feature values into separate NumPy arrays
     shap_column_names = [feature for feature in df.columns
                          if feature.endswith('_shap')]
     feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
-    shap_values = df[shap_column_names].to_numpy()
-    features = df[feature_names].to_numpy()
+    shap_values = filtered_df[shap_column_names].to_numpy()
+    features = filtered_df[feature_names].to_numpy()
     # Get the instance importance plot
     return du.visualization.shap_salient_features(shap_values, features, feature_names,
                                                   max_display=6,
@@ -253,15 +303,23 @@ def update_most_salient_features(dataset_name, model_name):
                                                   dash_width=None)
 
 @app.callback(Output('ts_feature_importance_graph', 'figure'),
-              [Input('dataset_name_div', 'children'),
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('dataset_name_div', 'children'),
                Input('model_name_div', 'children')])
-def update_ts_feat_import(dataset_name, model_name):
+def update_ts_feat_import(hovered_data, dataset_name, model_name):
     global df
     global model
     global expected_value
     # [TODO] Filter by the selected data point
+    # Get the selected data point's unit stay ID and timestamp
+    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    ts = hovered_data['points'][0]['x']
+    # Filter by the selected data point
     filtered_df = df.copy()
-    filtered_df = filtered_df.iloc[0]
+    # [TODO] Use the right ID column according to the used dataset
+    filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
+                              & (filtered_df['ts'] == ts)]
+    filtered_df = filtered_df.squeeze()
     # Get the SHAP and feature values into separate NumPy arrays
     shap_column_names = [feature for feature in df.columns
                          if feature.endswith('_shap')]
@@ -283,3 +341,37 @@ def update_ts_feat_import(dataset_name, model_name):
                                                 dash_width=None,
                                                 expected_value_ind_height=0,
                                                 output_ind_height=10)
+
+@app.callback(Output('final_output_graph', 'figure'),
+              [Input('instance_importance_graph', 'hoverData')])
+def update_final_output(hovered_data):
+    global df
+    global model
+    global id_column
+    global is_custom
+    # global cols_to_remove
+    # Get the selected data point's unit stay ID
+    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    # Filter by the selected data point
+    filtered_df = df.copy()
+    # [TODO] Use the right ID column according to the used dataset
+    filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
+    # Only use the model-relevant features
+    feature_names = [feature.split('_shap')[0] for feature in df.columns
+                     if feature.endswith('_shap')]
+    filtered_df = filtered_df[feature_names]
+    data = torch.from_numpy(filtered_df.values)
+    # Remove unwanted columns from the data
+    # data = du.deep_learning.remove_tensor_column(data, cols_to_remove, inplace=True)
+    # Make the data three-dimensional
+    data = data.unsqueeze(0)
+    # Feedforward the data through the model
+    outputs = model.forward(data)
+    final_output = int(float(outputs[-1]) * 100)
+    # Plot the updated final output
+    return du.visualization.indicator_plot(final_output, type='bullet', 
+                                           higher_is_better=False,
+                                           background_color=layouts.colors['gray_background'],
+                                           font_color=layouts.colors['header_font_color'],
+                                           font_size=20,
+                                           output_type='plotly')
