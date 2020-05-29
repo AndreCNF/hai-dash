@@ -509,6 +509,9 @@ detail_analysis_layout = html.Div([
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    # The timestamp of the last time that a data point was clicked in the
+    # instance importance graph
+    html.Div(id='clicked_ts', children='0', hidden=True),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(

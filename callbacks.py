@@ -2,11 +2,14 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, State, Output
+from dash.exceptions import PreventUpdate
+from dash import callback_context
 import pandas as pd
 import data_utils as du
 from model_interpreter.model_interpreter import ModelInterpreter
 import Models
 import torch
+from time import time
 from app import app
 import layouts
 
@@ -24,6 +27,8 @@ id_column = 'subject_id'
 is_custom = False
 # The columns to remove from the data so that the model can use it
 cols_to_remove = [0, 1]
+# Time threshold to prevent updates during this seconds after clicking in a data point
+clicked_thrsh = 3
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -71,28 +76,75 @@ def change_title(dataset_name, model_name):
     return f'{dataset_name} mortality prediction with {model_name} model'
 
 # Detailed analysis strings
+@app.callback(Output('clicked_ts', 'children'),
+              [Input('instance_importance_graph', 'clickData')])
+def update_clicked_ts(clicked_data):
+    return str(int(time()))
+
 @app.callback(Output('salient_features_card_title', 'children'),
-              [Input('instance_importance_graph', 'hoverData')])
-def update_patient_salient_feat_title(hovered_data):
-    # Get the selected data point's unit stay ID
-    patient_unit_stay_id = hovered_data['points'][0]['y']
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData')],
+              [State('clicked_ts', 'children')])
+def update_patient_salient_feat_title(hovered_data, clicked_data, clicked_ts):
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = hovered_data['points'][0]['y']
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = clicked_data['points'][0]['y']
     return f'Patient {patient_unit_stay_id}\'s salient features'
 
 @app.callback(Output('ts_feature_importance_card_title', 'children'),
-              [Input('instance_importance_graph', 'hoverData')])
-def update_ts_feat_import_title(hovered_data):
-    # Get the selected data point's timestamp
-    ts = hovered_data['points'][0]['x']
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData')],
+              [State('clicked_ts', 'children')])
+def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's timestamp
+        ts = hovered_data['points'][0]['x']
+    else:
+        # Get the selected data point's timestamp
+        ts = clicked_data['points'][0]['x']
     return f'Feature importance on ts={ts}'
 
 @app.callback([Output('patient_outcome_text', 'children'),
                Output('patient_outcome_card', 'color')],
-              [Input('instance_importance_graph', 'hoverData')])
-def update_patient_outcome(hovered_data):
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData')],
+              [State('clicked_ts', 'children')])
+def update_patient_outcome(hovered_data, clicked_data, clicked_ts):
     global df
     global id_column
-    # Get the selected data point's unit stay ID
-    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
     # [TODO] Use the right ID column according to the used dataset
@@ -273,13 +325,27 @@ def update_full_inst_import(dataset_name, model_name):
 
 @app.callback(Output('salient_features_list', 'children'),
               [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData'),
                Input('dataset_name_div', 'children'),
-               Input('model_name_div', 'children')])
-def update_most_salient_features(hovered_data, dataset_name, model_name):
+               Input('model_name_div', 'children')],
+              [State('clicked_ts', 'children')])
+def update_most_salient_features(hovered_data, clicked_data, dataset_name, model_name, clicked_ts):
     global df
     global model
-    # Get the selected data point's unit stay ID
-    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
     # [TODO] Use the right ID column according to the used dataset
@@ -304,16 +370,30 @@ def update_most_salient_features(hovered_data, dataset_name, model_name):
 
 @app.callback(Output('ts_feature_importance_graph', 'figure'),
               [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData'),
                Input('dataset_name_div', 'children'),
-               Input('model_name_div', 'children')])
-def update_ts_feat_import(hovered_data, dataset_name, model_name):
+               Input('model_name_div', 'children')],
+              [State('clicked_ts', 'children')])
+def update_ts_feat_import(hovered_data, clicked_data, dataset_name, model_name, clicked_ts):
     global df
     global model
     global expected_value
-    # [TODO] Filter by the selected data point
-    # Get the selected data point's unit stay ID and timestamp
-    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
-    ts = hovered_data['points'][0]['x']
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's unit stay ID and timestamp
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+        ts = hovered_data['points'][0]['x']
+    else:
+        # Get the selected data point's unit stay ID and timestamp
+        patient_unit_stay_id = int(clicked_data['points'][0]['y'])
+        ts = clicked_data['points'][0]['x']
     # Filter by the selected data point
     filtered_df = df.copy()
     # [TODO] Use the right ID column according to the used dataset
@@ -343,15 +423,29 @@ def update_ts_feat_import(hovered_data, dataset_name, model_name):
                                                 output_ind_height=10)
 
 @app.callback(Output('final_output_graph', 'figure'),
-              [Input('instance_importance_graph', 'hoverData')])
-def update_final_output(hovered_data):
+              [Input('instance_importance_graph', 'hoverData'),
+               Input('instance_importance_graph', 'clickData')],
+              [State('clicked_ts', 'children')])
+def update_final_output(hovered_data, clicked_data, clicked_ts):
     global df
     global model
     global id_column
     global is_custom
     # global cols_to_remove
-    # Get the selected data point's unit stay ID
-    patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    global clicked_thrsh
+    current_ts = time()
+    clicked_ts = int(clicked_ts)
+    # Check whether the trigger was the hover or click event
+    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
+        if (current_ts - clicked_ts) <= clicked_thrsh:
+            # Prevent the card from being updated on hover data if a 
+            # data point has been clicked recently
+            raise PreventUpdate
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
     # [TODO] Use the right ID column according to the used dataset
