@@ -17,18 +17,22 @@ import layouts
 df = pd.read_csv('data/data_n_shap_df.csv')
 df = df.drop(columns='Unnamed: 0')
 # Read the machine learning model
-model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6107valloss_04_05_2020_20_25.pth', 
-                                         ModelClass=Models.TLSTM)
+model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6888valloss_04_06_2020_03_14.pth', 
+                                         ModelClass=Models.MF2LSTM)
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
-# [TODO] Set and update the ID column name based on the chosen dataset
+# [TODO] Set and update the ID and timestamp column names based on the chosen dataset
 id_column = 'subject_id'
+ts_column = 'ts'
+# Optimize the column data types
+df[id_column] = df[id_column].astype('uint')
+df[ts_column] = df[ts_column].astype('int')
 # [TODO] Set and update whether the model is from a custom type or not
 is_custom = False
 # The columns to remove from the data so that the model can use it
 cols_to_remove = [0, 1]
 # Time threshold to prevent updates during this seconds after clicking in a data point
-clicked_thrsh = 3
+clicked_thrsh = 5
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -58,6 +62,68 @@ def change_dataset(dataset):
 def change_model_name(model_name):
     return model_name
 
+# Button callbacks
+@app.callback(Output('edit_sample_bttn', 'children'),
+              [Input('edit_sample_bttn', 'n_clicks')])
+def update_edit_button(n_clicks):
+    # [TODO] Also toggle if the data table is shown or hidden
+    if n_clicks % 2 == 0:
+        return 'Edit sample'
+    else:
+        return 'Stop editing'
+
+@app.callback([Output('sample_table', 'columns'),
+               Output('sample_table', 'data'),
+               Output('sample_edit_div', 'hidden'),
+               Output('sample_edit_card_title', 'children')],
+              [Input('edit_sample_bttn', 'n_clicks')],
+              [State('instance_importance_graph', 'hoverData'),
+               State('instance_importance_graph', 'clickData'),
+               State('clicked_ts', 'children'),
+               State('hovered_ts', 'children')])
+def update_sample_table(n_clicks, hovered_data, clicked_data, 
+                        clicked_ts, hovered_ts):
+    if n_clicks % 2 == 0 or (hovered_data is None and clicked_data is None):
+        # Stop editing
+        return None, None, True, 'Sample from patient Y on timestamp X'
+        # raise PreventUpdate
+    else:
+        global df
+        global id_column
+        global ts_column
+        global clicked_thrsh
+        current_ts = time()
+        clicked_ts = int(clicked_ts)
+        hovered_ts = int(hovered_ts)
+        # [TODO] Find a way to know which sample to show, considering that we can't find
+        # it from the callback_context (they're states, not inputs); perhaps also have a hovered_ts,
+        # to always be able to compare what was more recent.
+        # Check whether the current sample has originated from a hover or a click event
+        if ((current_ts - clicked_ts) <= clicked_thrsh
+        or clicked_ts > hovered_ts):
+            # Get the selected data point's unit stay ID and timestamp
+            patient_unit_stay_id = int(clicked_data['points'][0]['y'])
+            ts = clicked_data['points'][0]['x']
+        else:
+            # Get the selected data point's unit stay ID and timestamp
+            patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+            ts = hovered_data['points'][0]['x']
+        # Filter by the selected data point
+        filtered_df = df.copy()
+        # [TODO] Use the right ID column according to the used dataset
+        filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
+                                  & (filtered_df[ts_column] == ts)]
+        # Remove SHAP values and other unmodifiable columns from the table
+        shap_column_names = [feature for feature in filtered_df.columns
+                             if feature.endswith('_shap')]
+        filtered_df.drop(columns=shap_column_names, inplace=True)
+        filtered_df.drop(columns=['delta_ts', 'label'], inplace=True)
+        # [TODO] Set the column names as a list of dictionaries, as data table requires
+        columns = filtered_df.columns
+        data_columns = [dict(name=column, id=column) for column in columns]
+        return (data_columns, filtered_df.to_dict('records'), False, 
+                f'Sample from patient {patient_unit_stay_id} on timestamp {ts}')
+
 # Page headers callbacks
 @app.callback(Output('model_perf_header', 'children'),
               [Input('model_name_div', 'children')])
@@ -79,6 +145,11 @@ def change_title(dataset_name, model_name):
 @app.callback(Output('clicked_ts', 'children'),
               [Input('instance_importance_graph', 'clickData')])
 def update_clicked_ts(clicked_data):
+    return str(int(time()))
+
+@app.callback(Output('hovered_ts', 'children'),
+              [Input('instance_importance_graph', 'hoverData')])
+def update_hovered_ts(hovered_data):
     return str(int(time()))
 
 @app.callback(Output('salient_features_card_title', 'children'),

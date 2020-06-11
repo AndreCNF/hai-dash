@@ -1,6 +1,7 @@
-import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_table
+import dash_bootstrap_components as dbc
 import colorlover as cl                    # Get colors from colorscales
 import data_utils as du                    # Data science and machine learning relevant methods
 
@@ -79,14 +80,15 @@ main_layout = html.Div([
         marginRight='2em',
         textAlign='center'
     )),
-    html.H5('eICU mortality prediction with LSTM model',
-            id='main_title',
-            style=dict(
-                marginTop='0.5em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
+    html.H5(
+        'eICU mortality prediction with LSTM model',
+        id='main_title',
+        style=dict(
+            marginTop='0.5em',
+            marginLeft='2em',
+            marginRight='2em',
+            textAlign='center'
+        )
     ),
     dbc.CardDeck([
         dbc.Card([
@@ -213,20 +215,23 @@ performance_layout = html.Div([
         marginLeft='2em',
         marginRight='2em'
     )),
-    html.H5('Performance',
-            style=dict(
-                marginTop='0.5em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
+    html.H5(
+        'Performance',
+        style=dict(
+            marginTop='0.5em',
+            marginLeft='2em',
+            marginRight='2em',
+            textAlign='center'
+        )
     ),
     dbc.Card([
         dbc.CardBody([
-                html.H5('MF1-LSTM',
-                        id='model_perf_header',
-                        className='card-title',
-                        style=dict(color=colors['header_font_color']))
+                html.H5(
+                    'MF1-LSTM',
+                    id='model_perf_header',
+                    className='card-title',
+                    style=dict(color=colors['header_font_color'])
+                )
         ])
     ], color='primary', style=dict(height='5em', margin='2em')),
     dbc.CardDeck([
@@ -244,7 +249,11 @@ performance_layout = html.Div([
         ]),
         dbc.Card([
             dbc.CardBody([
-                    html.H5('Test AUC', className='card-title', style=dict(color=colors['header_font_color'])),
+                    html.H5(
+                        'Test AUC',
+                        className='card-title',
+                        style=dict(color=colors['header_font_color'])
+                    ),
                     du.visualization.indicator_plot(91, type='gauge', background_color=colors['gray_background'],
                                                     dash_id='perf_auc_gauge',
                                                     font_color=colors['header_font_color'],
@@ -365,20 +374,23 @@ dataset_overview_layout = html.Div([
         marginLeft='2em',
         marginRight='2em'
     )),
-    html.H5('Dataset overview',
-            style=dict(
-                marginTop='0.5em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
+    html.H5(
+        'Dataset overview',
+        style=dict(
+            marginTop='0.5em',
+            marginLeft='2em',
+            marginRight='2em',
+            textAlign='center'
+        )
     ),
     dbc.Card([
         dbc.CardBody([
-                html.H5('eICU',
-                        id='dataset_ovrvw_header',
-                        className='card-title',
-                        style=dict(color=colors['header_font_color']))
+                html.H5(
+                    'eICU',
+                    id='dataset_ovrvw_header',
+                    className='card-title',
+                    style=dict(color=colors['header_font_color'])
+                )
         ])
     ], color='primary', style=dict(height='5em', margin='2em')),
     dbc.Tabs([
@@ -443,13 +455,14 @@ feat_import_layout = html.Div([
         marginRight='2em',
         textAlign='center'
     )),
-    html.H5('Feature importance',
-            style=dict(
-                marginTop='0.5em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
+    html.H5(
+        'Feature importance',
+        style=dict(
+            marginTop='0.5em',
+            marginLeft='2em',
+            marginRight='2em',
+            textAlign='center'
+        )
     ),
     html.P(
         'Select how the data is filtered:',
@@ -509,9 +522,10 @@ detail_analysis_layout = html.Div([
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
-    # The timestamp of the last time that a data point was clicked in the
-    # instance importance graph
+    # The timestamp of the last time that a data point was clicked
+    # or hovered in the instance importance graph
     html.Div(id='clicked_ts', children='0', hidden=True),
+    html.Div(id='hovered_ts', children='0', hidden=True),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(
@@ -561,13 +575,14 @@ detail_analysis_layout = html.Div([
         marginRight='2em',
         textAlign='center'
     )),
-    html.H5('Detailed analysis',
-            style=dict(
-                marginTop='0.5em',
-                marginLeft='2em',
-                marginRight='2em',
-                textAlign='center'
-            )
+    html.H5(
+        'Detailed analysis',
+        style=dict(
+            marginTop='0.5em',
+            marginLeft='2em',
+            marginRight='2em',
+            textAlign='center'
+        )
     ),
     # [TODO] Add dynamic options to filter the data
     dbc.Card([
@@ -595,8 +610,11 @@ detail_analysis_layout = html.Div([
             dbc.Card([
                 dbc.CardBody([
                         # [TODO] Update the patient ID in this card's title according to the selected data point
-                        html.H5('Patient Y\'s salient features', className='card-title',
-                                id='salient_features_card_title'),
+                        html.H5(
+                            'Patient Y\'s salient features',
+                            id='salient_features_card_title',
+                            className='card-title'
+                        ),
                         dbc.ListGroup(id='salient_features_list',
                                       children=[],
                                       style=dict(
@@ -609,8 +627,11 @@ detail_analysis_layout = html.Div([
             dbc.Card([
                 dbc.CardBody([
                         # [TODO] Update the timestamp in this card's title according to the selected data point
-                        html.H5('Feature importance on ts=X', className='card-title',
-                                id='ts_feature_importance_card_title'),
+                        html.H5(
+                            'Feature importance on ts=X',
+                            id='ts_feature_importance_card_title',
+                            className='card-title'
+                        ),
                         dcc.Graph(id='ts_feature_importance_graph',
                                   config=dict(
                                       displayModeBar=False
@@ -624,10 +645,12 @@ detail_analysis_layout = html.Div([
             ], style=dict(height='26em')),
             dbc.Card([
                 dbc.CardBody([
-                        html.H5('Patient survives',
-                                id='patient_outcome_text',
-                                className='card-title',
-                                style=dict(color=colors['header_font_color']))
+                        html.H5(
+                            'Patient survives',
+                            id='patient_outcome_text',
+                            className='card-title',
+                            style=dict(color=colors['header_font_color'])
+                        )
                 ])
             # [TODO] Change the card's color between "success" and "danger", according to the outcome
             ], id='patient_outcome_card', color='success', style=dict(height='5em'
@@ -649,13 +672,47 @@ detail_analysis_layout = html.Div([
             ], style=dict(height='12em')),
             # [TODO] Create a part that allows editing the selected sample and see its effect;
             # this button should redirect to that part
-            dbc.Button('Edit sample', className='mt-auto', size='lg', block=True)
-            # href='/performance'),
+            dbc.Button('Reset data', id='reset_data_bttn', className='mt-auto', size='lg',
+                       block=True, disabled=True, style=dict(marginBottom='0.5em')),
+            dbc.Button('Edit sample', id='edit_sample_bttn', className='mt-auto', size='lg', block=True),
         ],
         style=dict(
             marginTop='1em',
             marginLeft='2em',
             marginRight='2em'
         )
-    )
+    ),
+    html.Div(
+        id='sample_edit_div',
+        hidden=True,
+        children=[
+            dbc.Card([
+                dbc.CardBody([
+                        html.H5(
+                            'Sample from patient Y on timestamp X', 
+                            id='sample_edit_card_title',
+                            className='card-title'
+                        ),
+                        dash_table.DataTable(
+                            id='sample_table',
+                            editable=True,
+                            style_table=dict(overflowX='auto'),
+                            style_header=dict(
+                                backgroundColor=colors['black'],
+                                border='1px solid grey'
+                            ),
+                            style_cell=dict(
+                                backgroundColor=colors['gray_background'],
+                                color='white',
+                                border='1px solid grey'
+                            ),
+                        ),
+                ])
+            ], style=dict(
+                    height='10em',
+                    marginLeft='2em',
+                    marginRight='2em'
+                )
+            ),
+        ])
 ])
