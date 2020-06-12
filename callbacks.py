@@ -13,24 +13,13 @@ from time import time
 from app import app
 import layouts
 
-# [TODO] Replace with the real dataframe; this one's just a dummy one
-df = pd.read_csv('data/data_n_shap_df.csv')
-df = df.drop(columns='Unnamed: 0')
 # Read the machine learning model
 model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6888valloss_04_06_2020_03_14.pth', 
                                          ModelClass=Models.MF2LSTM)
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
-# [TODO] Set and update the ID and timestamp column names based on the chosen dataset
-id_column = 'subject_id'
-ts_column = 'ts'
-# Optimize the column data types
-df[id_column] = df[id_column].astype('uint')
-df[ts_column] = df[ts_column].astype('int')
 # [TODO] Set and update whether the model is from a custom type or not
 is_custom = False
-# The columns to remove from the data so that the model can use it
-cols_to_remove = [0, 1]
 # Time threshold to prevent updates during this seconds after clicking in a data point
 clicked_thrsh = 5
 
@@ -50,6 +39,36 @@ def display_page(pathname):
         return layouts.detail_analysis_layout
     else:
         return '404'
+
+# Loading data callbacks
+def load_dataset(file_name, file_path='', file_ext='.csv',
+                 id_column='subject_id', ts_column='ts'):
+    # Read the toy example dataframe
+    df = pd.read_csv(f'{file_path}{file_name}{file_ext}')
+    df = df.drop(columns='Unnamed: 0')
+    # Optimize the column data types
+    df[id_column] = df[id_column].astype('uint')
+    df[ts_column] = df[ts_column].astype('int')
+    return df
+
+@app.callback([Output('dataset_store', 'data'),
+               Output('id_col_name_store', 'data'),
+               Output('ts_col_name_store', 'data'),
+               Output('cols_to_remove_store', 'data')],
+              [Input('dataset_name_div', 'children')])
+def load_dataset_callback(dataset_name):
+    if dataset_name == 'Toy Example':
+        # Load the toy example dataframe
+        df = load_dataset(file_name='data_n_shap_df', file_path='data/',
+                          file_ext='.csv', id_column='subject_id')
+        return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
+
+# [TODO]
+# @app.callback(Output('model_store', 'data'),
+#               [Input('model_name_div', 'children')])
+# def load_model_callback(model_name):
 
 # Dropdown callbacks
 @app.callback(Output('dataset_name_div', 'children'),
@@ -77,24 +96,26 @@ def update_edit_button(n_clicks):
                Output('sample_edit_div', 'hidden'),
                Output('sample_edit_card_title', 'children')],
               [Input('edit_sample_bttn', 'n_clicks')],
-              [State('instance_importance_graph', 'hoverData'),
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data'),
+               State('instance_importance_graph', 'hoverData'),
                State('instance_importance_graph', 'clickData'),
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children')])
-def update_sample_table(n_clicks, hovered_data, clicked_data, 
-                        clicked_ts, hovered_ts):
+def update_sample_table(n_clicks, df_store, id_column, ts_column, 
+                        hovered_data, clicked_data, clicked_ts, hovered_ts):
     if n_clicks % 2 == 0 or (hovered_data is None and clicked_data is None):
         # Stop editing
         return None, None, True, 'Sample from patient Y on timestamp X'
         # raise PreventUpdate
     else:
-        global df
-        global id_column
-        global ts_column
         global clicked_thrsh
         current_ts = time()
         clicked_ts = int(clicked_ts)
         hovered_ts = int(hovered_ts)
+        # Reconvert the dataframe to Pandas
+        df = pd.DataFrame(df_store)
         # [TODO] Find a way to know which sample to show, considering that we can't find
         # it from the callback_context (they're states, not inputs); perhaps also have a hovered_ts,
         # to always be able to compare what was more recent.
@@ -121,7 +142,7 @@ def update_sample_table(n_clicks, hovered_data, clicked_data,
         # [TODO] Set the column names as a list of dictionaries, as data table requires
         columns = filtered_df.columns
         data_columns = [dict(name=column, id=column) for column in columns]
-        return (data_columns, filtered_df.to_dict('records'), False, 
+        return (data_columns, filtered_df.to_dict('records'), False,
                 f'Sample from patient {patient_unit_stay_id} on timestamp {ts}')
 
 # Page headers callbacks
@@ -198,13 +219,17 @@ def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
                Output('patient_outcome_card', 'color')],
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData')],
-              [State('clicked_ts', 'children')])
-def update_patient_outcome(hovered_data, clicked_data, clicked_ts):
-    global df
-    global id_column
+              [State('clicked_ts', 'children'),
+               State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data')])
+def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
+                           df_store, id_column, ts_column):
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -272,15 +297,16 @@ def create_feat_import_card(df, card_title='Feature importance', max_display=Non
     return feat_import_card
 
 @app.callback(Output('feature_importance_preview', 'figure'),
-              [Input('dataset_name_div', 'children'),
-               Input('model_name_div', 'children')])
-def update_feat_import_preview(dataset_name, model_name):
-    global df
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('model_name_div', 'children')],
+              [State('dataset_store', 'data')])
+def update_feat_import_preview(dataset_mod, model_name, df_store):
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     return create_feat_import_plot(df, max_display=3,
                                    xaxis_title='Average impact on output')
 
-def create_fltd_feat_import_cards(data_filter=None):
-    global df
+def create_fltd_feat_import_cards(df, data_filter=None):
     # List that will contain all the cards that show feature importance for
     # each subset of data, filtered on the same categorical feature
     cards_list = list()
@@ -318,9 +344,11 @@ def create_fltd_feat_import_cards(data_filter=None):
     return cards_list
 
 @app.callback(Output('feature_importance_cards', 'children'),
-              [Input('feature_importance_dropdown', 'value')])
-def output_feat_import_page_cards(data_filter):
-    global df
+              [Input('feature_importance_dropdown', 'value')],
+              [State('dataset_store', 'data')])
+def output_feat_import_page_cards(data_filter, df_store):
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     # List that will contain all the cards that show feature importance for
     # each subset of data
     cards_list = list()
@@ -329,7 +357,7 @@ def output_feat_import_page_cards(data_filter):
     filters = data_filter.copy()
     if 'All' in filters:
         # Add a card with feature importance on all, unfiltered data
-        cards_list.append(create_fltd_feat_import_cards()[0])
+        cards_list.append(create_fltd_feat_import_cards(df)[0])
         filters.remove('All')
     if len(filters) == 0:
         # No more feature importance cards to output
@@ -337,14 +365,16 @@ def output_feat_import_page_cards(data_filter):
     # Add the remaining cards, corresponding to feature importance on possibly
     # filtered data
     [cards_list.append(card) for fltr in filters
-     for card in create_fltd_feat_import_cards(fltr)]
+     for card in create_fltd_feat_import_cards(df, fltr)]
     return cards_list
 
 @app.callback(Output('detailed_analysis_preview', 'figure'),
-              [Input('dataset_name_div', 'children'),
-               Input('model_name_div', 'children')])
-def update_det_analysis_preview(dataset_name, model_name):
-    global df
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('model_name_div', 'children')],
+              [State('dataset_store', 'data')])
+def update_det_analysis_preview(dataset_mod, model_name, df_store):
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     global model
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
@@ -368,10 +398,12 @@ def update_det_analysis_preview(dataset_name, model_name):
                                                 font_color=layouts.colors['body_font_color'])
 
 @app.callback(Output('instance_importance_graph', 'figure'),
-              [Input('dataset_name_div', 'children'),
-               Input('model_name_div', 'children')])
-def update_full_inst_import(dataset_name, model_name):
-    global df
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('model_name_div', 'children')],
+              [State('dataset_store', 'data')])
+def update_full_inst_import(dataset_mod, model_name, df_store):
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     global model
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
@@ -397,15 +429,19 @@ def update_full_inst_import(dataset_name, model_name):
 @app.callback(Output('salient_features_list', 'children'),
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData'),
-               Input('dataset_name_div', 'children'),
+               Input('dataset_store', 'modified_timestamp'),
                Input('model_name_div', 'children')],
-              [State('clicked_ts', 'children')])
-def update_most_salient_features(hovered_data, clicked_data, dataset_name, model_name, clicked_ts):
-    global df
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('clicked_ts', 'children')])
+def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
+                                 model_name, df_store, id_column, clicked_ts):
     global model
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -442,16 +478,20 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_name, model
 @app.callback(Output('ts_feature_importance_graph', 'figure'),
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData'),
-               Input('dataset_name_div', 'children'),
+               Input('dataset_store', 'modified_timestamp'),
                Input('model_name_div', 'children')],
-              [State('clicked_ts', 'children')])
-def update_ts_feat_import(hovered_data, clicked_data, dataset_name, model_name, clicked_ts):
-    global df
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('clicked_ts', 'children')])
+def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
+                          model_name, df_store, id_column, clicked_ts):
     global model
     global expected_value
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -496,16 +536,17 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_name, model_name, 
 @app.callback(Output('final_output_graph', 'figure'),
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData')],
-              [State('clicked_ts', 'children')])
-def update_final_output(hovered_data, clicked_data, clicked_ts):
-    global df
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('clicked_ts', 'children')])
+def update_final_output(hovered_data, clicked_data, df_store, id_column, clicked_ts):
     global model
-    global id_column
     global is_custom
-    # global cols_to_remove
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:

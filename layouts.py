@@ -29,6 +29,10 @@ pred_colors = cl.scales['8']['div']['RdYlGn']
 main_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    dcc.Store(id='dataset_store', storage_type='memory'),
+    dcc.Store(id='id_col_name_store', storage_type='memory'),
+    dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dbc.Row([
@@ -37,7 +41,8 @@ main_layout = html.Div([
                 id='dataset_dropdown',
                 options=[
                     dict(label='eICU', value='eICU'),
-                    dict(label='ALS', value='ALS')
+                    dict(label='ALS', value='ALS'),
+                    dict(label='Toy Example', value='Toy Example')
                 ],
                 placeholder='Choose a dataset',
                 searchable=False,
@@ -186,6 +191,10 @@ main_layout = html.Div([
 performance_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    dcc.Store(id='dataset_store', storage_type='memory'),
+    dcc.Store(id='id_col_name_store', storage_type='memory'),
+    dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     html.Div([
@@ -348,6 +357,10 @@ performance_layout = html.Div([
 dataset_overview_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    dcc.Store(id='dataset_store', storage_type='memory'),
+    dcc.Store(id='id_col_name_store', storage_type='memory'),
+    dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     html.Div([
@@ -356,6 +369,7 @@ dataset_overview_layout = html.Div([
             options=[
                 dict(label='eICU', value='eICU'),
                 dict(label='ALS', value='ALS'),
+                dict(label='Toy Example', value='Toy Example')
             ],
             placeholder='Choose a dataset',
             searchable=False,
@@ -366,7 +380,7 @@ dataset_overview_layout = html.Div([
                 backgroundColor=colors['black'],
                 textColor=colors['body_font_color'],
                 fontColor=colors['body_font_color']
-            ),
+            )
         ),
     ],
     style=dict(
@@ -404,6 +418,10 @@ dataset_overview_layout = html.Div([
 feat_import_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    dcc.Store(id='dataset_store', storage_type='memory'),
+    dcc.Store(id='id_col_name_store', storage_type='memory'),
+    dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dbc.Row([
@@ -412,7 +430,8 @@ feat_import_layout = html.Div([
                 id='dataset_dropdown',
                 options=[
                     dict(label='eICU', value='eICU'),
-                    dict(label='ALS', value='ALS')
+                    dict(label='ALS', value='ALS'),
+                    dict(label='Toy Example', value='Toy Example')
                 ],
                 placeholder='Choose a dataset',
                 searchable=False,
@@ -520,6 +539,10 @@ feat_import_layout = html.Div([
 detail_analysis_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    dcc.Store(id='dataset_store', storage_type='memory'),
+    dcc.Store(id='id_col_name_store', storage_type='memory'),
+    dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     # The timestamp of the last time that a data point was clicked
@@ -532,7 +555,8 @@ detail_analysis_layout = html.Div([
                 id='dataset_dropdown',
                 options=[
                     dict(label='eICU', value='eICU'),
-                    dict(label='ALS', value='ALS')
+                    dict(label='ALS', value='ALS'),
+                    dict(label='Toy Example', value='Toy Example')
                 ],
                 placeholder='Choose a dataset',
                 searchable=False,
