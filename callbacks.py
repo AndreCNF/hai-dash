@@ -13,9 +13,8 @@ from time import time
 from app import app
 import layouts
 
-# Read the machine learning model
-model = du.deep_learning.load_checkpoint(filepath='models/checkpoint_0.6888valloss_04_06_2020_03_14.pth', 
-                                         ModelClass=Models.MF2LSTM)
+# Path to the directory where all the ML models are stored
+models_path = 'models/'
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
 # [TODO] Set and update whether the model is from a custom type or not
@@ -65,10 +64,25 @@ def load_dataset_callback(dataset_name):
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
 
-# [TODO]
-# @app.callback(Output('model_store', 'data'),
-#               [Input('model_name_div', 'children')])
-# def load_model_callback(model_name):
+@app.callback(Output('model_store', 'data'),
+              [Input('model_name_div', 'children'),
+               Input('dataset_name_div', 'children')])
+def load_model_callback(model_name, dataset_name):
+    global models_path
+    # Based on the chosen dataset and model type, set a file path to the desired model
+    if dataset_name == 'Toy Example':
+        if model_name == 'RNN':
+            return None
+        elif model_name == 'LSTM':
+            return None
+        elif model_name == 'TLSTM':
+            return None
+        elif model_name == 'MF1-LSTM':
+            return None
+        elif model_name == 'MF2-LSTM':
+            return f'{models_path}checkpoint_0.6888valloss_04_06_2020_03_14.pth'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
 
 # Dropdown callbacks
 @app.callback(Output('dataset_name_div', 'children'),
@@ -85,7 +99,6 @@ def change_model_name(model_name):
 @app.callback(Output('edit_sample_bttn', 'children'),
               [Input('edit_sample_bttn', 'n_clicks')])
 def update_edit_button(n_clicks):
-    # [TODO] Also toggle if the data table is shown or hidden
     if n_clicks % 2 == 0:
         return 'Edit sample'
     else:
@@ -116,9 +129,6 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column,
         hovered_ts = int(hovered_ts)
         # Reconvert the dataframe to Pandas
         df = pd.DataFrame(df_store)
-        # [TODO] Find a way to know which sample to show, considering that we can't find
-        # it from the callback_context (they're states, not inputs); perhaps also have a hovered_ts,
-        # to always be able to compare what was more recent.
         # Check whether the current sample has originated from a hover or a click event
         if ((current_ts - clicked_ts) <= clicked_thrsh
         or clicked_ts > hovered_ts):
@@ -131,7 +141,6 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column,
             ts = hovered_data['points'][0]['x']
         # Filter by the selected data point
         filtered_df = df.copy()
-        # [TODO] Use the right ID column according to the used dataset
         filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
                                   & (filtered_df[ts_column] == ts)]
         # Remove SHAP values and other unmodifiable columns from the table
@@ -139,7 +148,7 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column,
                              if feature.endswith('_shap')]
         filtered_df.drop(columns=shap_column_names, inplace=True)
         filtered_df.drop(columns=['delta_ts', 'label'], inplace=True)
-        # [TODO] Set the column names as a list of dictionaries, as data table requires
+        # Set the column names as a list of dictionaries, as data table requires
         columns = filtered_df.columns
         data_columns = [dict(name=column, id=column) for column in columns]
         return (data_columns, filtered_df.to_dict('records'), False,
@@ -243,7 +252,6 @@ def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
-    # [TODO] Use the right ID column according to the used dataset
     filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
     # Find if the patient dies
     patient_dies = (filtered_df.tail(1).label == 1).values[0]
@@ -371,11 +379,14 @@ def output_feat_import_page_cards(data_filter, df_store):
 @app.callback(Output('detailed_analysis_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
                Input('model_name_div', 'children')],
-              [State('dataset_store', 'data')])
-def update_det_analysis_preview(dataset_mod, model_name, df_store):
+              [State('dataset_store', 'data'),
+               State('model_store', 'data')])
+def update_det_analysis_preview(dataset_mod, model_name, df_store, model_store):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
-    global model
+    # Load the model
+    model = du.deep_learning.load_checkpoint(filepath=model_store, 
+                                             ModelClass=getattr(Models, model_name.replace('-', '')))
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
                     if not feature.endswith('_shap')]
@@ -399,12 +410,16 @@ def update_det_analysis_preview(dataset_mod, model_name, df_store):
 
 @app.callback(Output('instance_importance_graph', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
-               Input('model_name_div', 'children')],
-              [State('dataset_store', 'data')])
-def update_full_inst_import(dataset_mod, model_name, df_store):
+               Input('model_store', 'modified_timestamp')],
+              [State('dataset_store', 'data'),
+               State('model_store', 'data'),
+               State('model_name_div', 'children')])
+def update_full_inst_import(dataset_mod, model_mod, df_store, model_store, model_name):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
-    global model
+    # Load the model
+    model = du.deep_learning.load_checkpoint(filepath=model_store, 
+                                             ModelClass=getattr(Models, model_name.replace('-', '')))
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
                     if not feature.endswith('_shap')]
@@ -436,7 +451,6 @@ def update_full_inst_import(dataset_mod, model_name, df_store):
                State('clicked_ts', 'children')])
 def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
                                  model_name, df_store, id_column, clicked_ts):
-    global model
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
@@ -455,7 +469,6 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
-    # [TODO] Use the right ID column according to the used dataset
     filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
     # Get the SHAP and feature values into separate NumPy arrays
     shap_column_names = [feature for feature in df.columns
@@ -481,17 +494,21 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                Input('dataset_store', 'modified_timestamp'),
                Input('model_name_div', 'children')],
               [State('dataset_store', 'data'),
+               State('model_store', 'data'),
                State('id_col_name_store', 'data'),
                State('clicked_ts', 'children')])
 def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
-                          model_name, df_store, id_column, clicked_ts):
-    global model
+                          model_name, df_store, model_store, 
+                          id_column, clicked_ts):
     global expected_value
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
+    # Load the model
+    model = du.deep_learning.load_checkpoint(filepath=model_store, 
+                                             ModelClass=getattr(Models, model_name.replace('-', '')))
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -507,7 +524,6 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
         ts = clicked_data['points'][0]['x']
     # Filter by the selected data point
     filtered_df = df.copy()
-    # [TODO] Use the right ID column according to the used dataset
     filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
                               & (filtered_df['ts'] == ts)]
     filtered_df = filtered_df.squeeze()
@@ -537,16 +553,23 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData')],
               [State('dataset_store', 'data'),
+               State('model_store', 'data'),
+               State('model_name_div', 'children'),
                State('id_col_name_store', 'data'),
                State('clicked_ts', 'children')])
-def update_final_output(hovered_data, clicked_data, df_store, id_column, clicked_ts):
-    global model
+def update_final_output(hovered_data, clicked_data, df_store, model_store, 
+                        model_name, id_column, clicked_ts):
     global is_custom
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
+    # Load the model
+    model = du.deep_learning.load_checkpoint(filepath=model_store, 
+                                             ModelClass=getattr(Models, model_name.replace('-', '')))
+    # Guarantee that the model is in evaluation mode, so as to deactivate dropout
+    model.eval()
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -560,7 +583,6 @@ def update_final_output(hovered_data, clicked_data, df_store, id_column, clicked
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
-    # [TODO] Use the right ID column according to the used dataset
     filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
     # Only use the model-relevant features
     feature_names = [feature.split('_shap')[0] for feature in df.columns

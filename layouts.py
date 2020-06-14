@@ -545,6 +545,7 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dcc.Store(id='model_store', storage_type='memory'),
     # The timestamp of the last time that a data point was clicked
     # or hovered in the instance importance graph
     html.Div(id='clicked_ts', children='0', hidden=True),
