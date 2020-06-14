@@ -19,6 +19,8 @@ models_path = 'models/'
 expected_value = 0.5
 # [TODO] Set and update whether the model is from a custom type or not
 is_custom = False
+# Padding value used to pad the data sequences up to a maximum length
+padding_value = 999999
 # Time threshold to prevent updates during this seconds after clicking in a data point
 clicked_thrsh = 5
 
@@ -54,15 +56,30 @@ def load_dataset(file_name, file_path='', file_ext='.csv',
                Output('id_col_name_store', 'data'),
                Output('ts_col_name_store', 'data'),
                Output('cols_to_remove_store', 'data')],
-              [Input('dataset_name_div', 'children')])
-def load_dataset_callback(dataset_name):
-    if dataset_name == 'Toy Example':
-        # Load the toy example dataframe
-        df = load_dataset(file_name='data_n_shap_df', file_path='data/',
-                          file_ext='.csv', id_column='subject_id')
-        return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+              [Input('dataset_name_div', 'children'),
+               Input('sample_table', 'data_timestamp')],
+              [State('sample_table', 'data'),
+               State('dataset_store', 'data'),
+               State('model_name_div', 'children'),
+               State('model_store', 'data')])
+def load_dataset_callback(dataset_name, dataset_mod, new_data, df_store, model_name, model_store):
+    if callback_context.triggered[0]['prop_id'].split('.')[0] == 'dataset_name_div':
+        # Loading a dataset from disk
+        if dataset_name == 'Toy Example':
+            # Load the toy example dataframe
+            df = load_dataset(file_name='data_n_shap_df', file_path='data/',
+                              file_ext='.csv', id_column='subject_id')
+            return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+        else:
+            raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     else:
-        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
+        # Refreshing the data with a new edited sample
+        if dataset_name == 'Toy Example':
+            df = apply_data_changes(new_data, df_store, id_column='subject_id', ts_column='ts', 
+                                    model_name=model_name, model_store=model_store)
+            return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+        else:
+            raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
 
 @app.callback(Output('model_store', 'data'),
               [Input('model_name_div', 'children'),
@@ -603,3 +620,62 @@ def update_final_output(hovered_data, clicked_data, df_store, model_store,
                                            font_color=layouts.colors['header_font_color'],
                                            font_size=20,
                                            output_type='plotly')
+
+# Data editing
+def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, model_store):
+    global is_custom
+    global padding_value
+    # Load the current data as a Pandas dataframe
+    df = pd.DataFrame(df_store)
+    # Load the new data as a Pandas dataframe
+    new_sample_df = pd.DataFrame(new_data)
+    # Optimize the column data types
+    df[id_column] = df[id_column].astype('uint')
+    df[ts_column] = df[ts_column].astype('int')
+    new_sample_df[id_column] = new_sample_df[id_column].astype('uint')
+    new_sample_df[ts_column] = new_sample_df[ts_column].astype('int')
+    # Get the selected data point's unit stay ID and timestamp
+    patient_unit_stay_id = int(new_sample_df[id_column].iloc[0])
+    ts = int(new_sample_df[ts_column].iloc[0])
+    # Filter by the selected data point
+    filtered_df = df.copy()
+    filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
+                              & (filtered_df[ts_column] == ts)]
+    # Check if the new data really has changes compared to the stored data
+    sample_columns = list(new_sample_df.columns)
+    if new_sample_df.equals(filtered_df[sample_columns]):
+        # No actual changes to be done to the dataframe
+        raise PreventUpdate
+    else:
+        # Get the sequence data up to the edited sample, with the applied changes
+        seq_df = df[(df[id_column] == patient_unit_stay_id)
+                    & (df[ts_column] <= ts)]
+        seq_df.loc[seq_df[ts_column] == ts, sample_columns] = new_sample_df.values
+        # Convert the data into feature and label tensors (so as to be feed to the model)
+        shap_column_names = [feature for feature in filtered_df.columns
+                             if feature.endswith('_shap')]
+        feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+        features = torch.from_numpy(seq_df[feature_names].to_numpy().astype(float))
+        labels = torch.from_numpy(seq_df['label'].to_numpy())
+        # Make sure that the features are numeric (the edited data might come out in string format)
+        # and three-dimensional
+        features = features.float().unsqueeze(0)
+        # Load the model
+        model = du.deep_learning.load_checkpoint(filepath=model_store, 
+                                                 ModelClass=getattr(Models, model_name.replace('-', '')))
+        # Recalculate the SHAP values
+        interpreter = ModelInterpreter(model, model_type='multivariate_rnn',
+                                       id_column=id_column, inst_column=ts_column, 
+                                       fast_calc=True, SHAP_bkgnd_samples=10000,
+                                       random_seed=du.random_seed, 
+                                       padding_value=padding_value, is_custom=is_custom)
+        _ = interpreter.interpret_model(test_data=features, test_labels=labels, 
+                                        instance_importance=False, feature_importance='shap')
+        # Join the updated SHAP values to the dataframe
+        data_n_shap = np.concatenate([features.numpy(), labels.unsqueeze(2).numpy(), interpreter.feat_scores], axis=2)
+        data_n_shap_columns = [id_column, ts_column]+features_names+['label']+shap_column_names
+        data_n_shap_df = pd.DataFrame(data=data_n_shap.reshape(-1, 19), columns=data_n_shap_columns)
+        # Update the current sample in the stored data
+        df.loc[(df[id_column] == patient_unit_stay_id)
+               & (df[ts_column] <= ts)] = data_n_shap_df
+        return df
