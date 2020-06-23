@@ -10,4 +10,4 @@ server = app.server
 # doing something wrong.
 # In this case, we're adding the elements through a callback, so we can ignore
 # the exception.
-app.config.suppress_callback_exceptions = True
+# app.config.suppress_callback_exceptions = True

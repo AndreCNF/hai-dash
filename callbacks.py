@@ -323,9 +323,10 @@ def create_feat_import_card(df, card_title='Feature importance', max_display=Non
 
 @app.callback(Output('feature_importance_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
-               Input('model_name_div', 'children')],
-              [State('dataset_store', 'data')])
-def update_feat_import_preview(dataset_mod, model_name, df_store):
+               Input('model_store', 'modified_timestamp')],
+              [State('model_name_div', 'children'),
+               State('dataset_store', 'data')])
+def update_feat_import_preview(dataset_mod, model_mod, model_name, df_store):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
     return create_feat_import_plot(df, max_display=3,
@@ -395,10 +396,11 @@ def output_feat_import_page_cards(data_filter, df_store):
 
 @app.callback(Output('detailed_analysis_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
-               Input('model_name_div', 'children')],
-              [State('dataset_store', 'data'),
+               Input('model_store', 'modified_timestamp')],
+              [State('model_name_div', 'children'),
+               State('dataset_store', 'data'),
                State('model_store', 'data')])
-def update_det_analysis_preview(dataset_mod, model_name, df_store, model_store):
+def update_det_analysis_preview(dataset_mod, model_mod, model_name, df_store, model_store):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
     # Load the model
@@ -651,6 +653,8 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, mod
         seq_df = df[(df[id_column] == patient_unit_stay_id)
                     & (df[ts_column] <= ts)]
         seq_df.loc[seq_df[ts_column] == ts, sample_columns] = new_sample_df.values
+        # Find the sequence length dictionary corresponding to the current sample
+        seq_len_dict = du.padding.get_sequence_length_dict(data, id_column=id_column, ts_column=ts_column)
         # Convert the data into feature and label tensors (so as to be feed to the model)
         shap_column_names = [feature for feature in filtered_df.columns
                              if feature.endswith('_shap')]
@@ -668,7 +672,8 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, mod
                                        id_column=id_column, inst_column=ts_column, 
                                        fast_calc=True, SHAP_bkgnd_samples=10000,
                                        random_seed=du.random_seed, 
-                                       padding_value=padding_value, is_custom=is_custom)
+                                       padding_value=padding_value, is_custom=is_custom,
+                                       seq_len_dict=seq_len_dict)
         _ = interpreter.interpret_model(test_data=features, test_labels=labels, 
                                         instance_importance=False, feature_importance='shap')
         # Join the updated SHAP values to the dataframe

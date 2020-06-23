@@ -4,8 +4,9 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 from app import app
 import callbacks
+import layouts
 
-app.layout = html.Div([
+base_layout = html.Div([
     dbc.NavbarSimple(
         children=[
             dbc.NavItem(dbc.NavLink('Performance', href='/performance')),
@@ -32,6 +33,17 @@ app.layout = html.Div([
     ),
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')
+])
+
+app.layout = base_layout
+
+app.validation_layout = html.Div([
+    base_layout,
+    layouts.main_layout,
+    layouts.performance_layout,
+    layouts.dataset_overview_layout,
+    layouts.detail_analysis_layout,
+    layouts.feat_import_layout
 ])
 
 if __name__ == '__main__':
