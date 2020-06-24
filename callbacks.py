@@ -9,6 +9,7 @@ import data_utils as du
 from model_interpreter.model_interpreter import ModelInterpreter
 import Models
 import torch
+import numpy as np
 from time import time
 from app import app
 import layouts
@@ -18,7 +19,7 @@ models_path = 'models/'
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
 # [TODO] Set and update whether the model is from a custom type or not
-is_custom = False
+is_custom = True
 # Padding value used to pad the data sequences up to a maximum length
 padding_value = 999999
 # Time threshold to prevent updates during this seconds after clicking in a data point
@@ -467,25 +468,25 @@ def update_full_inst_import(dataset_mod, model_mod, df_store, model_store, model
                Input('model_name_div', 'children')],
               [State('dataset_store', 'data'),
                State('id_col_name_store', 'data'),
-               State('clicked_ts', 'children')])
+               State('clicked_ts', 'children'),
+               State('hovered_ts', 'children')])
 def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
-                                 model_name, df_store, id_column, clicked_ts):
+                                 model_name, df_store, id_column, 
+                                 clicked_ts, hovered_ts):
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
-    # Check whether the trigger was the hover or click event
-    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
-        if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
-            # data point has been clicked recently
-            raise PreventUpdate
-        # Get the selected data point's unit stay ID
-        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
-    else:
+    # Check whether the current sample has originated from a hover or a click event
+    if ((current_ts - clicked_ts) <= clicked_thrsh
+    or clicked_ts > hovered_ts):
         # Get the selected data point's unit stay ID
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
     filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
@@ -515,32 +516,31 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
               [State('dataset_store', 'data'),
                State('model_store', 'data'),
                State('id_col_name_store', 'data'),
-               State('clicked_ts', 'children')])
+               State('clicked_ts', 'children'),
+               State('hovered_ts', 'children')])
 def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
                           model_name, df_store, model_store, 
-                          id_column, clicked_ts):
+                          id_column, clicked_ts, hovered_ts):
     global expected_value
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
+    hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
     # Load the model
     model = du.deep_learning.load_checkpoint(filepath=model_store, 
                                              ModelClass=getattr(Models, model_name.replace('-', '')))
-    # Check whether the trigger was the hover or click event
-    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
-        if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
-            # data point has been clicked recently
-            raise PreventUpdate
-        # Get the selected data point's unit stay ID and timestamp
-        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
-        ts = hovered_data['points'][0]['x']
-    else:
+    # Check whether the current sample has originated from a hover or a click event
+    if ((current_ts - clicked_ts) <= clicked_thrsh
+    or clicked_ts > hovered_ts):
         # Get the selected data point's unit stay ID and timestamp
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
         ts = clicked_data['points'][0]['x']
+    else:
+        # Get the selected data point's unit stay ID and timestamp
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
+        ts = hovered_data['points'][0]['x']
     # Filter by the selected data point
     filtered_df = df.copy()
     filtered_df = filtered_df[(filtered_df[id_column] == patient_unit_stay_id)
@@ -654,11 +654,12 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, mod
                     & (df[ts_column] <= ts)]
         seq_df.loc[seq_df[ts_column] == ts, sample_columns] = new_sample_df.values
         # Find the sequence length dictionary corresponding to the current sample
-        seq_len_dict = du.padding.get_sequence_length_dict(data, id_column=id_column, ts_column=ts_column)
+        seq_len_dict = du.padding.get_sequence_length_dict(seq_df, id_column=id_column, ts_column=ts_column)
         # Convert the data into feature and label tensors (so as to be feed to the model)
         shap_column_names = [feature for feature in filtered_df.columns
                              if feature.endswith('_shap')]
         feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+        feature_names = [id_column, ts_column] + feature_names
         features = torch.from_numpy(seq_df[feature_names].to_numpy().astype(float))
         labels = torch.from_numpy(seq_df['label'].to_numpy())
         # Make sure that the features are numeric (the edited data might come out in string format)
@@ -669,16 +670,19 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, mod
                                                  ModelClass=getattr(Models, model_name.replace('-', '')))
         # Recalculate the SHAP values
         interpreter = ModelInterpreter(model, model_type='multivariate_rnn',
-                                       id_column=id_column, inst_column=ts_column, 
+                                       id_column=0, inst_column=1, 
                                        fast_calc=True, SHAP_bkgnd_samples=10000,
                                        random_seed=du.random_seed, 
                                        padding_value=padding_value, is_custom=is_custom,
-                                       seq_len_dict=seq_len_dict)
+                                       seq_len_dict=seq_len_dict,
+                                       feat_names=feature_names)
         _ = interpreter.interpret_model(test_data=features, test_labels=labels, 
                                         instance_importance=False, feature_importance='shap')
         # Join the updated SHAP values to the dataframe
-        data_n_shap = np.concatenate([features.numpy(), labels.unsqueeze(2).numpy(), interpreter.feat_scores], axis=2)
-        data_n_shap_columns = [id_column, ts_column]+features_names+['label']+shap_column_names
+        if len(labels.shape) == 1:
+            labels = labels.unsqueeze(1)
+        data_n_shap = np.concatenate([features.numpy(), labels.unsqueeze(0).numpy(), interpreter.feat_scores], axis=2)
+        data_n_shap_columns = [id_column, ts_column]+feature_names+['label']+shap_column_names
         data_n_shap_df = pd.DataFrame(data=data_n_shap.reshape(-1, 19), columns=data_n_shap_columns)
         # Update the current sample in the stored data
         df.loc[(df[id_column] == patient_unit_stay_id)
