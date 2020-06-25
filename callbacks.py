@@ -142,14 +142,12 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column,
         # raise PreventUpdate
     else:
         global clicked_thrsh
-        current_ts = time()
         clicked_ts = int(clicked_ts)
         hovered_ts = int(hovered_ts)
         # Reconvert the dataframe to Pandas
         df = pd.DataFrame(df_store)
         # Check whether the current sample has originated from a hover or a click event
-        if ((current_ts - clicked_ts) <= clicked_thrsh
-        or clicked_ts > hovered_ts):
+        if (hovered_ts - clicked_ts) <= clicked_thrsh:
             # Get the selected data point's unit stay ID and timestamp
             patient_unit_stay_id = int(clicked_data['points'][0]['y'])
             ts = clicked_data['points'][0]['x']
@@ -474,14 +472,12 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                                  model_name, df_store, id_column, 
                                  clicked_ts, hovered_ts):
     global clicked_thrsh
-    current_ts = time()
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
     # Check whether the current sample has originated from a hover or a click event
-    if ((current_ts - clicked_ts) <= clicked_thrsh
-    or clicked_ts > hovered_ts):
+    if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's unit stay ID
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
     else:
@@ -523,7 +519,6 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                           id_column, clicked_ts, hovered_ts):
     global expected_value
     global clicked_thrsh
-    current_ts = time()
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
@@ -532,8 +527,7 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
     model = du.deep_learning.load_checkpoint(filepath=model_store, 
                                              ModelClass=getattr(Models, model_name.replace('-', '')))
     # Check whether the current sample has originated from a hover or a click event
-    if ((current_ts - clicked_ts) <= clicked_thrsh
-    or clicked_ts > hovered_ts):
+    if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's unit stay ID and timestamp
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
         ts = clicked_data['points'][0]['x']
@@ -568,20 +562,24 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                                                 expected_value_ind_height=0,
                                                 output_ind_height=10)
 
-@app.callback(Output('final_output_graph', 'figure'),
-              [Input('instance_importance_graph', 'hoverData'),
+@app.callback([Output('final_output_graph', 'figure'),
+               Output('curr_final_output', 'data')],
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData')],
               [State('dataset_store', 'data'),
                State('model_store', 'data'),
                State('model_name_div', 'children'),
                State('id_col_name_store', 'data'),
-               State('clicked_ts', 'children')])
-def update_final_output(hovered_data, clicked_data, df_store, model_store, 
-                        model_name, id_column, clicked_ts):
+               State('clicked_ts', 'children'),
+               State('hovered_ts', 'children'),
+               State('curr_final_output', 'data')])
+def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model_store, 
+                        model_name, id_column, clicked_ts, hovered_ts, prev_output):
     global is_custom
     global clicked_thrsh
-    current_ts = time()
     clicked_ts = int(clicked_ts)
+    hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
     # Load the model
@@ -590,16 +588,12 @@ def update_final_output(hovered_data, clicked_data, df_store, model_store,
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
     # Check whether the trigger was the hover or click event
-    if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
-        if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
-            # data point has been clicked recently
-            raise PreventUpdate
-        # Get the selected data point's unit stay ID
-        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
-    else:
+    if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's unit stay ID
         patient_unit_stay_id = int(clicked_data['points'][0]['y'])
+    else:
+        # Get the selected data point's unit stay ID
+        patient_unit_stay_id = int(hovered_data['points'][0]['y'])
     # Filter by the selected data point
     filtered_df = df.copy()
     filtered_df = filtered_df[filtered_df[id_column] == patient_unit_stay_id]
@@ -615,13 +609,23 @@ def update_final_output(hovered_data, clicked_data, df_store, model_store,
     # Feedforward the data through the model
     outputs = model.forward(data)
     final_output = int(float(outputs[-1]) * 100)
+    # Add a comparison with the previous output value, in case the current sample was edited
+    if callback_context.triggered[0]['prop_id'] == 'dataset_store.modified_timestamp':
+        delta_ref = prev_output
+        show_delta = True
+    else:
+        delta_ref = None
+        show_delta = False
     # Plot the updated final output
-    return du.visualization.indicator_plot(final_output, type='bullet', 
-                                           higher_is_better=False,
-                                           background_color=layouts.colors['gray_background'],
-                                           font_color=layouts.colors['header_font_color'],
-                                           font_size=20,
-                                           output_type='plotly')
+    output_plot = du.visualization.indicator_plot(final_output, type='bullet', 
+                                                  higher_is_better=False,
+                                                  show_delta=show_delta,
+                                                  ref_value=delta_ref,
+                                                  background_color=layouts.colors['gray_background'],
+                                                  font_color=layouts.colors['header_font_color'],
+                                                  font_size=24,
+                                                  output_type='plotly')
+    return output_plot, final_output
 
 # Data editing
 def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, model_store):
@@ -682,9 +686,9 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_name, mod
         if len(labels.shape) == 1:
             labels = labels.unsqueeze(1)
         data_n_shap = np.concatenate([features.numpy(), labels.unsqueeze(0).numpy(), interpreter.feat_scores], axis=2)
-        data_n_shap_columns = [id_column, ts_column]+feature_names+['label']+shap_column_names
-        data_n_shap_df = pd.DataFrame(data=data_n_shap.reshape(-1, 19), columns=data_n_shap_columns)
+        # data_n_shap_columns = [id_column, ts_column]+feature_names+['label']+shap_column_names
+        # data_n_shap_df = pd.DataFrame(data=data_n_shap.reshape(-1, 19), columns=data_n_shap_columns)
         # Update the current sample in the stored data
         df.loc[(df[id_column] == patient_unit_stay_id)
-               & (df[ts_column] <= ts)] = data_n_shap_df
+               & (df[ts_column] <= ts)] = data_n_shap.reshape(-1, 19)
         return df

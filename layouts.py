@@ -36,6 +36,8 @@ detail_analysis_layout = html.Div([
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
+    # Current final output value
+    dcc.Store(id='curr_final_output', storage_type='memory'),
     # The timestamp of the last time that a data point was clicked
     # or hovered in the instance importance graph
     html.Div(id='clicked_ts', children='0', hidden=True),
@@ -181,7 +183,8 @@ detail_analysis_layout = html.Div([
                                   style=dict(
                                       height='5em',
                                     #   marginBottom='1em'
-                                  )
+                                  ),
+                                  animate=True
                         ),
                 ])
             ], style=dict(height='12em')),
@@ -471,6 +474,7 @@ performance_layout = html.Div([
                         className='card-title',
                         style=dict(color=colors['header_font_color'])
                     ),
+                    # [TODO] Add the "animate" parameter to the indicator_plot method
                     du.visualization.indicator_plot(91, type='gauge', background_color=colors['gray_background'],
                                                     dash_id='perf_auc_gauge',
                                                     font_color=colors['header_font_color'],
