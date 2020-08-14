@@ -28,7 +28,7 @@ pred_colors = cl.scales['8']['div']['RdYlGn']
 
 detail_analysis_layout = html.Div([
     # Chosen dataset
-    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    html.Div(id='dataset_name_div', children='ALS', hidden=True),
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
@@ -36,6 +36,8 @@ detail_analysis_layout = html.Div([
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
+    dcc.Store(id='model_metrics', storage_type='memory'),
+    dcc.Store(id='model_hyperparam', storage_type='memory'),
     # Current final output value
     dcc.Store(id='curr_final_output', storage_type='memory'),
     # The timestamp of the last time that a data point was clicked
@@ -47,7 +49,6 @@ detail_analysis_layout = html.Div([
             dcc.Dropdown(
                 id='dataset_dropdown',
                 options=[
-                    dict(label='eICU', value='eICU'),
                     dict(label='ALS', value='ALS'),
                     dict(label='Toy Example', value='Toy Example')
                 ],
@@ -67,11 +68,13 @@ detail_analysis_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='RNN', value='RNN'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
+                    dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
-                    dict(label='TLSTM', value='TLSTM'),
-                    dict(label='MF1-LSTM', value='MF1-LSTM'),
-                    dict(label='MF2-LSTM', value='MF2-LSTM')
+                    dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
+                    dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='MF1-LSTM', value='MF2-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,
@@ -105,15 +108,22 @@ detail_analysis_layout = html.Div([
     dbc.Card([
             dbc.CardBody([
                     html.H5('Instance importance on all patients\' time series', className='card-title'),
-                    dcc.Graph(id='instance_importance_graph',
-                              config=dict(
-                                displayModeBar=False
-                              ),
-                              style=dict(
-                                height='24em',
-                                marginBottom='1em'
-                              )
-                    ),
+                    dcc.Loading(
+                        id='loading_instance_importance_graph',
+                        children=[
+                            dcc.Graph(
+                                id='instance_importance_graph',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='24em',
+                                    marginBottom='1em'
+                                )
+                            ),
+                        ],
+                        type='default',
+                    )
             ])
         ], style=dict(
                height='30.5em',
@@ -239,7 +249,7 @@ main_layout = html.Div([
     # I need to have the detailed analysis hidden here, just so Dash can be aware of its components in the main page
     html.Div(detail_analysis_layout, hidden=True),
     # Chosen dataset
-    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    html.Div(id='dataset_name_div', children='ALS', hidden=True),
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
@@ -251,7 +261,6 @@ main_layout = html.Div([
             dcc.Dropdown(
                 id='dataset_dropdown',
                 options=[
-                    dict(label='eICU', value='eICU'),
                     dict(label='ALS', value='ALS'),
                     dict(label='Toy Example', value='Toy Example')
                 ],
@@ -271,11 +280,13 @@ main_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='RNN', value='RNN'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
+                    dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
-                    dict(label='TLSTM', value='TLSTM'),
-                    dict(label='MF1-LSTM', value='MF1-LSTM'),
-                    dict(label='MF2-LSTM', value='MF2-LSTM')
+                    dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
+                    dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='MF1-LSTM', value='MF2-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,
@@ -297,7 +308,7 @@ main_layout = html.Div([
         textAlign='center'
     )),
     html.H5(
-        'eICU mortality prediction with LSTM model',
+        'ALS NIV prediction with LSTM model',
         id='main_title',
         style=dict(
             marginTop='0.5em',
@@ -364,14 +375,21 @@ main_layout = html.Div([
         dbc.Card([
             dbc.CardBody([
                     html.H5('Detailed analysis', className='card-title'),
-                    dcc.Graph(id='detailed_analysis_preview',
-                              config=dict(
-                                displayModeBar=False
-                              ),
-                              style=dict(
-                                height='10em',
-                                marginBottom='1em'
-                              )
+                    dcc.Loading(
+                        id='loading_detailed_analysis_preview',
+                        children=[
+                            dcc.Graph(
+                                id='detailed_analysis_preview',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='10em',
+                                    marginBottom='1em'
+                                )
+                            ),
+                        ],
+                        type='default',
                     ),
                     dbc.Button('Expand', className='mt-auto', href='/detailed-analysis'),
             ])
@@ -379,14 +397,21 @@ main_layout = html.Div([
         dbc.Card([
             dbc.CardBody([
                     html.H5('Feature importance', className='card-title'),
-                    dcc.Graph(id='feature_importance_preview',
-                              config=dict(
-                                displayModeBar=False
-                              ),
-                              style=dict(
-                                height='10em',
-                                marginBottom='1em'
-                              )
+                    dcc.Loading(
+                        id='loading_feature_importance_preview',
+                        children=[
+                            dcc.Graph(
+                                id='feature_importance_preview',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='10em',
+                                    marginBottom='1em'
+                                )
+                            ),
+                        ],
+                        type='default',
                     ),
                     dbc.Button('Expand', className='mt-auto', href='/feature-importance'),
             ])
@@ -401,7 +426,7 @@ main_layout = html.Div([
 
 performance_layout = html.Div([
     # Chosen dataset
-    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    html.Div(id='dataset_name_div', children='ALS', hidden=True),
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
@@ -412,11 +437,13 @@ performance_layout = html.Div([
         dcc.Dropdown(
             id='model_dropdown',
             options=[
-                dict(label='RNN', value='RNN'),
+                dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
+                dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                 dict(label='LSTM', value='LSTM'),
-                dict(label='TLSTM', value='TLSTM'),
-                dict(label='MF1-LSTM', value='MF1-LSTM'),
-                dict(label='MF2-LSTM', value='MF2-LSTM'),
+                dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
+                dict(label='RNN, embedded', value='RNN, embedded'),
+                dict(label='MF1-LSTM', value='MF2-LSTM')
             ],
             placeholder='Choose a model',
             searchable=False,
@@ -568,7 +595,7 @@ performance_layout = html.Div([
 # [TODO]
 dataset_overview_layout = html.Div([
     # Chosen dataset
-    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    html.Div(id='dataset_name_div', children='ALS', hidden=True),
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
@@ -579,7 +606,6 @@ dataset_overview_layout = html.Div([
         dcc.Dropdown(
             id='dataset_dropdown',
             options=[
-                dict(label='eICU', value='eICU'),
                 dict(label='ALS', value='ALS'),
                 dict(label='Toy Example', value='Toy Example')
             ],
@@ -612,7 +638,7 @@ dataset_overview_layout = html.Div([
     dbc.Card([
         dbc.CardBody([
                 html.H5(
-                    'eICU',
+                    'ALS',
                     id='dataset_ovrvw_header',
                     className='card-title',
                     style=dict(color=colors['header_font_color'])
@@ -629,7 +655,7 @@ dataset_overview_layout = html.Div([
 # [TODO]
 feat_import_layout = html.Div([
     # Chosen dataset
-    html.Div(id='dataset_name_div', children='eICU', hidden=True),
+    html.Div(id='dataset_name_div', children='ALS', hidden=True),
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
@@ -641,7 +667,6 @@ feat_import_layout = html.Div([
             dcc.Dropdown(
                 id='dataset_dropdown',
                 options=[
-                    dict(label='eICU', value='eICU'),
                     dict(label='ALS', value='ALS'),
                     dict(label='Toy Example', value='Toy Example')
                 ],
@@ -661,11 +686,13 @@ feat_import_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='RNN', value='RNN'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
+                    dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
-                    dict(label='TLSTM', value='TLSTM'),
-                    dict(label='MF1-LSTM', value='MF1-LSTM'),
-                    dict(label='MF2-LSTM', value='MF2-LSTM')
+                    dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
+                    dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='MF1-LSTM', value='MF2-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,
@@ -738,13 +765,20 @@ feat_import_layout = html.Div([
     )),
     # Create a CardColumns that dynamically outputs cards with feature
     # importance for data filtered by the selected parameters
-    dbc.CardColumns(
-        id='feature_importance_cards',
-        children=[],
-        style=dict(
-            marginTop='1em',
-            marginLeft='2em',
-            marginRight='2em')
+    dcc.Loading(
+        id='loading_feature_importance_cards',
+        children=[
+            dbc.CardColumns(
+                id='feature_importance_cards',
+                children=[],
+                style=dict(
+                    marginTop='1em',
+                    marginLeft='2em',
+                    marginRight='2em'
+                )
+            )
+        ],
+        type='default',
     )
 ])
 

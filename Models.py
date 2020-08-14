@@ -1,7 +1,6 @@
 import torch                            # PyTorch to create and apply deep learning models
 from torch import nn                    # nn for neural network layers
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-import torch.jit as jit                 # TorchScript for faster custom models
 import math                             # Useful package for logarithm operations
 import numpy as np                      # Mathematical operations package, allowing also for missing values representation
 from functools import partial           # Fix some parameters of a function
@@ -17,7 +16,7 @@ class BaseRNN(nn.Module):
 
         nn.Parameters
         ----------
-        rnn_module : nn.Module or jit.ScriptModule
+        rnn_module : nn.Module
             Recurrent neural network module to be used in this model.
         n_inputs : int
             Number of input features.
@@ -29,8 +28,8 @@ class BaseRNN(nn.Module):
             Number of RNN layers.
         p_dropout : float or int, default 0
             Probability of dropout.
-        embed_features : list of ints or list of lists of ints, default None
-            List of features (refered to by their indeces) that need to go
+        embed_features : list of ints or list of list of ints, default None
+            List of features (refered to by their indices) that need to go
             through embedding layers. One list of one hot encoded feature per
             embedding layer must be set.
         n_embeddings : list of ints, default None
@@ -91,28 +90,34 @@ class BaseRNN(nn.Module):
                         if self.n_embeddings[i] != len(self.embed_features[i])+1:
                             raise Exception(f'ERROR: The number of embeddings `n_embeddings` must equal the length of its corresponding embedding features `embed_features` + 1 (missing values). The provided `n_embeddings` is {self.n_embeddings[i]} while `embed_features` has length {len(self.embed_features[i])}, in embedding features set {i}.')
             if all([isinstance(feature, int) for feature in self.embed_features]):
-                if embedding_dim is None:
+                if self.embedding_dim is None:
                     # Calculate a reasonable embedding dimension for the
                     # current feature; the formula sets a minimum embedding
                     # dimension of 3, with above values being calculated as
                     # the rounded up base 5 logarithm of the number of
                     # embeddings.
-                    embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, base=5))))
+                    self.embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, 5))))
                 # Create a single embedding layer
-                self.embed_layers = nn.EmbeddingBag(self.n_embeddings, embedding_dim)
+                self.embed_layers = nn.EmbeddingBag(self.n_embeddings, self.embedding_dim)
             elif (all([isinstance(feat_list, list) for feat_list in self.embed_features])
             and all([isinstance(feature, int) for feat_list in self.embed_features
                      for feature in feat_list])):
                 # Create a modules list of embedding bag layers
                 self.embed_layers = nn.ModuleList()
+                if self.embedding_dim is None:
+                    self.embedding_dim = list()
+                    none_embedding_dim = True
+                else:
+                    none_embedding_dim = False
                 for i in range(len(self.embed_features)):
-                    if embedding_dim is None:
+                    if none_embedding_dim is True:
                         # Calculate a reasonable embedding dimension for the
                         # current feature; the formula sets a minimum embedding
                         # dimension of 3, with above values being calculated as
                         # the rounded up base 5 logarithm of the number of
                         # embeddings.
-                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], base=5))))
+                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], 5))))
+                        self.embedding_dim.append(embedding_dim_i)
                     else:
                         embedding_dim_i = self.embedding_dim[i]
                     # Create an embedding layer for the current feature
@@ -196,7 +201,6 @@ class BaseRNN(nn.Module):
             rnn_output, self.hidden = self.rnn_layer(x, hidden_state)
         else:
             # List[RNNState]: One state per layer
-            # output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
             if self.is_lstm is True:
                 output_states = (torch.zeros(self.hidden[0].shape), torch.zeros(self.hidden[1].shape))
             else:
@@ -223,11 +227,8 @@ class BaseRNN(nn.Module):
                 i += 1
             # Update the hidden states variable
             self.hidden = output_states
-        # Apply dropout to the last RNN layer
-        # [TODO] Consider if it makes sense to add dropout to the last RNN layer
-        # rnn_output = self.dropout(rnn_output)
         # Flatten RNN output to fit into the fully connected layer
-        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden)
+        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_rnn_output)
         if prob_output is True:
@@ -246,7 +247,7 @@ class BaseRNN(nn.Module):
         # Flatten the data
         y_pred = y_pred.reshape(-1)
         y_labels = y_labels.reshape(-1)
-        # Find the indeces that don't correspond to padding samples
+        # Find the indices that don't correspond to padding samples
         non_pad_idx = y_labels != self.padding_value
         # Remove the padding samples
         y_labels = y_labels[non_pad_idx]
@@ -288,8 +289,8 @@ class VanillaRNN(nn.Module):
             Number of RNN layers.
         p_dropout : float or int, default 0
             Probability of dropout.
-        embed_features : list of ints, default None
-            List of features (refered to by their indeces) that need to go
+        embed_features : list of ints or list of list of ints, default None
+            List of features (refered to by their indices) that need to go
             through embedding layers.
         n_embeddings : list of ints, default None
             List of the total number of unique categories for the embedding
@@ -336,8 +337,6 @@ class VanillaRNN(nn.Module):
                 else:
                     raise Exception(f'ERROR: The embedding features must be indicated in `embed_features` as either a single, integer index or a list of indices. The provided argument has type {type(embed_features)}.')
             else:
-                if isinstance(self.n_embeddings, int):
-                    self.n_embeddings = [self.n_embeddings]
                 if all([isinstance(feature, int) for feature in self.embed_features]):
                     if self.n_embeddings != len(self.embed_features)+1:
                         raise Exception(f'ERROR: The number of embeddings `n_embeddings` must equal the length of its corresponding embedding features `embed_features` + 1 (missing values). The provided `n_embeddings` is {self.n_embeddings} while `embed_features` has length {len(self.embed_features)}.')
@@ -350,28 +349,34 @@ class VanillaRNN(nn.Module):
                         if self.n_embeddings[i] != len(self.embed_features[i])+1:
                             raise Exception(f'ERROR: The number of embeddings `n_embeddings` must equal the length of its corresponding embedding features `embed_features` + 1 (missing values). The provided `n_embeddings` is {self.n_embeddings[i]} while `embed_features` has length {len(self.embed_features[i])}, in embedding features set {i}.')
             if all([isinstance(feature, int) for feature in self.embed_features]):
-                if embedding_dim is None:
+                if self.embedding_dim is None:
                     # Calculate a reasonable embedding dimension for the
                     # current feature; the formula sets a minimum embedding
                     # dimension of 3, with above values being calculated as
                     # the rounded up base 5 logarithm of the number of
                     # embeddings.
-                    embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, base=5))))
+                    self.embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, 5))))
                 # Create a single embedding layer
-                self.embed_layers = nn.EmbeddingBag(self.n_embeddings, embedding_dim)
+                self.embed_layers = nn.EmbeddingBag(self.n_embeddings, self.embedding_dim)
             elif (all([isinstance(feat_list, list) for feat_list in self.embed_features])
             and all([isinstance(feature, int) for feat_list in self.embed_features
                      for feature in feat_list])):
                 # Create a modules list of embedding bag layers
                 self.embed_layers = nn.ModuleList()
+                if self.embedding_dim is None:
+                    self.embedding_dim = list()
+                    none_embedding_dim = True
+                else:
+                    none_embedding_dim = False
                 for i in range(len(self.embed_features)):
-                    if embedding_dim is None:
+                    if none_embedding_dim is True:
                         # Calculate a reasonable embedding dimension for the
                         # current feature; the formula sets a minimum embedding
                         # dimension of 3, with above values being calculated as
                         # the rounded up base 5 logarithm of the number of
                         # embeddings.
-                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], base=5))))
+                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], 5))))
+                        self.embedding_dim.append(embedding_dim_i)
                     else:
                         embedding_dim_i = self.embedding_dim[i]
                     # Create an embedding layer for the current feature
@@ -393,11 +398,11 @@ class VanillaRNN(nn.Module):
                 for i in range(len(self.embed_features)):
                     self.rnn_n_inputs = self.rnn_n_inputs + self.embedding_dim[i] - len(self.embed_features[i])
         self.rnn = nn.RNN(self.rnn_n_inputs, self.n_hidden, self.n_rnn_layers,
-                           batch_first=True, dropout=self.p_dropout,
-                           bidirectional=self.bidir)
+                          batch_first=True, dropout=self.p_dropout,
+                          bidirectional=self.bidir)
         # Fully connected layer which takes the RNN's hidden units and
         # calculates the output classification
-        self.fc = nn.Linear(self.n_hidden, self.n_outputs)
+        self.fc = nn.Linear(self.n_hidden * (1 + self.bidir), self.n_outputs)
         # Dropout used between the last RNN layer and the fully connected layer
         self.dropout = nn.Dropout(p=self.p_dropout)
         if self.n_outputs == 1:
@@ -411,7 +416,8 @@ class VanillaRNN(nn.Module):
             # Use the binary cross entropy function
             self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, hidden_state=None, x_lengths=None, get_hidden_state=False,
+    def forward(self, x, hidden_state=None, seq_lengths=None,
+                total_length=None, get_hidden_state=False,
                 prob_output=True, already_embedded=False):
         if self.embed_features is not None and already_embedded is False:
             # Run each embedding layer on each respective feature, adding the
@@ -431,20 +437,24 @@ class VanillaRNN(nn.Module):
         else:
             # Use the specified hidden state
             self.hidden = hidden_state
-        if x_lengths is not None:
+        if seq_lengths is not None:
             # pack_padded_sequence so that padded items in the sequence won't be
             # shown to the RNN
-            x = pack_padded_sequence(x, x_lengths, batch_first=True, enforce_sorted=False)
+            x = pack_padded_sequence(x, seq_lengths, batch_first=True, enforce_sorted=False)
         # Get the outputs and hidden states from the RNN layer(s)
         rnn_output, self.hidden = self.rnn(x, self.hidden)
-        if x_lengths is not None:
+        if seq_lengths is not None:
+            # [TODO] Use a dynamically defined total_length
+            # if total_length is None:
+            #     # Get the model's predefined total sequence length
+            #     total_length = self.total_length
             # Undo the packing operation
             rnn_output, _ = pad_packed_sequence(rnn_output, batch_first=True,
                                                 total_length=self.total_length)
         # Apply dropout to the last RNN layer
         rnn_output = self.dropout(rnn_output)
         # Flatten RNN output to fit into the fully connected layer
-        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden)
+        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_rnn_output)
         if prob_output is True:
@@ -463,7 +473,7 @@ class VanillaRNN(nn.Module):
         # Flatten the data
         y_pred = y_pred.reshape(-1)
         y_labels = y_labels.reshape(-1)
-        # Find the indeces that don't correspond to padding samples
+        # Find the indices that don't correspond to padding samples
         non_pad_idx = y_labels != self.padding_value
         # Remove the padding samples
         y_labels = y_labels[non_pad_idx]
@@ -502,8 +512,8 @@ class VanillaLSTM(nn.Module):
             Number of LSTM layers.
         p_dropout : float or int, default 0
             Probability of dropout.
-        embed_features : list of ints, default None
-            List of features (refered to by their indeces) that need to go
+        embed_features : list of ints or list of list of ints, default None
+            List of features (refered to by their indices) that need to go
             through embedding layers.
         n_embeddings : list of ints, default None
             List of the total number of unique categories for the embedding
@@ -550,8 +560,6 @@ class VanillaLSTM(nn.Module):
                 else:
                     raise Exception(f'ERROR: The embedding features must be indicated in `embed_features` as either a single, integer index or a list of indices. The provided argument has type {type(embed_features)}.')
             else:
-                if isinstance(self.n_embeddings, int):
-                    self.n_embeddings = [self.n_embeddings]
                 if all([isinstance(feature, int) for feature in self.embed_features]):
                     if self.n_embeddings != len(self.embed_features)+1:
                         raise Exception(f'ERROR: The number of embeddings `n_embeddings` must equal the length of its corresponding embedding features `embed_features` + 1 (missing values). The provided `n_embeddings` is {self.n_embeddings} while `embed_features` has length {len(self.embed_features)}.')
@@ -564,13 +572,13 @@ class VanillaLSTM(nn.Module):
                         if self.n_embeddings[i] != len(self.embed_features[i])+1:
                             raise Exception(f'ERROR: The number of embeddings `n_embeddings` must equal the length of its corresponding embedding features `embed_features` + 1 (missing values). The provided `n_embeddings` is {self.n_embeddings[i]} while `embed_features` has length {len(self.embed_features[i])}, in embedding features set {i}.')
             if all([isinstance(feature, int) for feature in self.embed_features]):
-                if embedding_dim is None:
+                if self.embedding_dim is None:
                     # Calculate a reasonable embedding dimension for the
                     # current feature; the formula sets a minimum embedding
                     # dimension of 3, with above values being calculated as
                     # the rounded up base 5 logarithm of the number of
                     # embeddings.
-                    embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, base=5))))
+                    self.embedding_dim = max(3, int(math.ceil(math.log(self.n_embeddings, 5))))
                 # Create a single embedding layer
                 self.embed_layers = nn.EmbeddingBag(self.n_embeddings, embedding_dim)
             elif (all([isinstance(feat_list, list) for feat_list in self.embed_features])
@@ -578,14 +586,20 @@ class VanillaLSTM(nn.Module):
                      for feature in feat_list])):
                 # Create a modules list of embedding bag layers
                 self.embed_layers = nn.ModuleList()
+                if self.embedding_dim is None:
+                    self.embedding_dim = list()
+                    none_embedding_dim = True
+                else:
+                    none_embedding_dim = False
                 for i in range(len(self.embed_features)):
-                    if embedding_dim is None:
+                    if none_embedding_dim is True:
                         # Calculate a reasonable embedding dimension for the
                         # current feature; the formula sets a minimum embedding
                         # dimension of 3, with above values being calculated as
                         # the rounded up base 5 logarithm of the number of
                         # embeddings.
-                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], base=5))))
+                        embedding_dim_i = max(3, int(math.ceil(math.log(self.n_embeddings[i], 5))))
+                        self.embedding_dim.append(embedding_dim_i)
                     else:
                         embedding_dim_i = self.embedding_dim[i]
                     # Create an embedding layer for the current feature
@@ -611,7 +625,7 @@ class VanillaLSTM(nn.Module):
                             bidirectional=self.bidir)
         # Fully connected layer which takes the LSTM's hidden units and
         # calculates the output classification
-        self.fc = nn.Linear(self.n_hidden, self.n_outputs)
+        self.fc = nn.Linear(self.n_hidden * (1 + self.bidir), self.n_outputs)
         # Dropout used between the last LSTM layer and the fully connected layer
         self.dropout = nn.Dropout(p=self.p_dropout)
         if self.n_outputs == 1:
@@ -625,7 +639,8 @@ class VanillaLSTM(nn.Module):
             # Use the binary cross entropy function
             self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, hidden_state=None, x_lengths=None, get_hidden_state=False,
+    def forward(self, x, hidden_state=None, seq_lengths=None, 
+                total_length=None, get_hidden_state=False,
                 prob_output=True, already_embedded=False):
         if self.embed_features is not None and already_embedded is False:
             # Run each embedding layer on each respective feature, adding the
@@ -645,20 +660,20 @@ class VanillaLSTM(nn.Module):
         else:
             # Use the specified hidden state
             self.hidden = hidden_state
-        if x_lengths is not None:
+        if seq_lengths is not None:
             # pack_padded_sequence so that padded items in the sequence won't be
             # shown to the LSTM
-            x = pack_padded_sequence(x, x_lengths, batch_first=True, enforce_sorted=False)
+            x = pack_padded_sequence(x, seq_lengths, batch_first=True, enforce_sorted=False)
         # Get the outputs and hidden states from the LSTM layer(s)
         lstm_output, self.hidden = self.lstm(x, self.hidden)
-        if x_lengths is not None:
+        if seq_lengths is not None:
             # Undo the packing operation
             lstm_output, _ = pad_packed_sequence(lstm_output, batch_first=True,
                                                  total_length=self.total_length)
         # Apply dropout to the last LSTM layer
         lstm_output = self.dropout(lstm_output)
         # Flatten LSTM output to fit into the fully connected layer
-        flat_lstm_output = lstm_output.contiguous().view(-1, self.n_hidden)
+        flat_lstm_output = lstm_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_lstm_output)
         if prob_output is True:
@@ -677,7 +692,7 @@ class VanillaLSTM(nn.Module):
         # Flatten the data
         y_pred = y_pred.reshape(-1)
         y_labels = y_labels.reshape(-1)
-        # Find the indeces that don't correspond to padding samples
+        # Find the indices that don't correspond to padding samples
         non_pad_idx = y_labels != self.padding_value
         # Remove the padding samples
         y_labels = y_labels[non_pad_idx]
@@ -740,7 +755,7 @@ class TLSTM(BaseRNN):
                          for feature in feat_list])):
                     self.delta_ts_col = n_inputs
                     for i in range(len(embed_features)):
-                        self.delta_ts_col = rnn_n_inputs - len(embed_features[i])
+                        self.delta_ts_col = self.delta_ts_col - len(embed_features[i])
 
         else:
             self.delta_ts_col = delta_ts_col
@@ -800,7 +815,6 @@ class TLSTM(BaseRNN):
             rnn_output, self.hidden = self.rnn_layer(x, hidden_state, delta_ts=delta_ts)
         else:
             # List[RNNState]: One state per layer
-            # output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
             output_states = (torch.zeros(self.hidden[0].shape), torch.zeros(self.hidden[1].shape))
             i = 0
             # The first RNN layer's input is the original input;
@@ -819,11 +833,10 @@ class TLSTM(BaseRNN):
                 i += 1
             # Update the hidden states variable
             self.hidden = output_states
-        # Apply dropout to the last RNN layer
-        # [TODO] Consider if it makes sense to add dropout to the last RNN layer
-        # rnn_output = self.dropout(rnn_output)
+        # Reconvert the data to the format of (sample x timestamp x features)
+        rnn_output = rnn_output.permute(1, 0, 2)
         # Flatten RNN output to fit into the fully connected layer
-        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden)
+        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_rnn_output)
         if prob_output is True:
@@ -860,7 +873,7 @@ class MF1LSTM(BaseRNN):
                          for feature in feat_list])):
                     self.delta_ts_col = n_inputs
                     for i in range(len(embed_features)):
-                        self.delta_ts_col = rnn_n_inputs - len(embed_features[i])
+                        self.delta_ts_col = self.delta_ts_col - len(embed_features[i])
 
         else:
             self.delta_ts_col = delta_ts_col
@@ -920,7 +933,6 @@ class MF1LSTM(BaseRNN):
             rnn_output, self.hidden = self.rnn_layer(x, hidden_state, delta_ts=delta_ts)
         else:
             # List[RNNState]: One state per layer
-            # output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
             output_states = (torch.zeros(self.hidden[0].shape), torch.zeros(self.hidden[1].shape))
             i = 0
             # The first RNN layer's input is the original input;
@@ -939,11 +951,10 @@ class MF1LSTM(BaseRNN):
                 i += 1
             # Update the hidden states variable
             self.hidden = output_states
-        # Apply dropout to the last RNN layer
-        # [TODO] Consider if it makes sense to add dropout to the last RNN layer
-        # rnn_output = self.dropout(rnn_output)
+        # Reconvert the data to the format of (sample x timestamp x features)
+        rnn_output = rnn_output.permute(1, 0, 2)
         # Flatten RNN output to fit into the fully connected layer
-        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden)
+        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_rnn_output)
         if prob_output is True:
@@ -982,7 +993,7 @@ class MF2LSTM(BaseRNN):
                          for feature in feat_list])):
                     self.delta_ts_col = n_inputs
                     for i in range(len(embed_features)):
-                        self.delta_ts_col = rnn_n_inputs - len(embed_features[i])
+                        self.delta_ts_col = self.delta_ts_col - len(embed_features[i])
 
         else:
             self.delta_ts_col = delta_ts_col
@@ -1042,7 +1053,6 @@ class MF2LSTM(BaseRNN):
             rnn_output, self.hidden = self.rnn_layer(x, hidden_state, delta_ts=delta_ts)
         else:
             # List[RNNState]: One state per layer
-            # output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
             output_states = (torch.zeros(self.hidden[0].shape), torch.zeros(self.hidden[1].shape))
             i = 0
             # The first RNN layer's input is the original input;
@@ -1061,11 +1071,10 @@ class MF2LSTM(BaseRNN):
                 i += 1
             # Update the hidden states variable
             self.hidden = output_states
-        # Apply dropout to the last RNN layer
-        # [TODO] Consider if it makes sense to add dropout to the last RNN layer
-        # rnn_output = self.dropout(rnn_output)
+        # Reconvert the data to the format of (sample x timestamp x features)
+        rnn_output = rnn_output.permute(1, 0, 2)
         # Flatten RNN output to fit into the fully connected layer
-        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden)
+        flat_rnn_output = rnn_output.contiguous().view(-1, self.n_hidden * (1 + self.bidir))
         # Apply the final fully connected layer
         output = self.fc(flat_rnn_output)
         if prob_output is True:
@@ -1081,7 +1090,7 @@ class MF2LSTM(BaseRNN):
             return output
 
 
-class LSTMCell(jit.ScriptModule):
+class LSTMCell(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(LSTMCell, self).__init__()
         self.input_size = input_size
@@ -1091,7 +1100,6 @@ class LSTMCell(jit.ScriptModule):
         self.bias_ih = nn.Parameter(torch.randn(4 * hidden_size))
         self.bias_hh = nn.Parameter(torch.randn(4 * hidden_size))
 
-    @jit.script_method
     def forward(self, input, state):
         # type: (Tensor, Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         hx, cx = state
@@ -1110,7 +1118,7 @@ class LSTMCell(jit.ScriptModule):
         return hy, (hy, cy)
 
 
-class TLSTMCell(jit.ScriptModule):
+class TLSTMCell(nn.Module):
     def __init__(self, input_size, hidden_size, delta_ts_col=-1, elapsed_time='small',
                  no_small_delta=True):
         super(TLSTMCell, self).__init__()
@@ -1128,7 +1136,6 @@ class TLSTMCell(jit.ScriptModule):
         self.bias_hh = nn.Parameter(torch.randn(4 * hidden_size))
         self.bias_ch = nn.Parameter(torch.randn(hidden_size))
 
-    @jit.script_method
     def forward(self, input, state, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Separate the elapsed time from the remaining features
@@ -1174,7 +1181,7 @@ class TLSTMCell(jit.ScriptModule):
         return hy, (hy, cy)
 
 
-class MF1LSTMCell(jit.ScriptModule):
+class MF1LSTMCell(nn.Module):
     def __init__(self, input_size, hidden_size, delta_ts_col=-1, elapsed_time='small',
                  no_small_delta=True):
         super(MF1LSTMCell, self).__init__()
@@ -1190,7 +1197,6 @@ class MF1LSTMCell(jit.ScriptModule):
         self.bias_ih = nn.Parameter(torch.randn(4 * hidden_size))
         self.bias_hh = nn.Parameter(torch.randn(4 * hidden_size))
 
-    @jit.script_method
     def forward(self, input, state, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Separate the elapsed time from the remaining features
@@ -1230,7 +1236,7 @@ class MF1LSTMCell(jit.ScriptModule):
         return hy, (hy, cy)
 
 
-class MF2LSTMCell(jit.ScriptModule):
+class MF2LSTMCell(nn.Module):
     def __init__(self, input_size, hidden_size, delta_ts_col=-1, elapsed_time='small',
                  no_small_delta=True):
         super(MF2LSTMCell, self).__init__()
@@ -1248,7 +1254,6 @@ class MF2LSTMCell(jit.ScriptModule):
         self.bias_hh = nn.Parameter(torch.randn(4 * hidden_size))
         self.bias_fq = nn.Parameter(torch.randn(hidden_size))
 
-    @jit.script_method
     def forward(self, input, state, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Separate the elapsed time from the remaining features
@@ -1275,7 +1280,7 @@ class MF2LSTMCell(jit.ScriptModule):
             g = 1 / torch.log(math.e * delta_ts)
         # Apply MF2-LSTM's parametric time
         g = g.view(input.shape[0], -1)
-        q = torch.cat([(g / 60), (g / 720) ** 2, (g / 1440) ** 3], dim=1)
+        q = torch.cat([(g / 15), (g / 90) ** 2, (g / 180) ** 3], dim=1)
         forget_gate = forget_gate + torch.mm(q, self.weight_fq.t()) + self.bias_fq
         # Apply each gate's activation function
         in_gate = torch.sigmoid(in_gate)
@@ -1290,12 +1295,11 @@ class MF2LSTMCell(jit.ScriptModule):
         return hy, (hy, cy)
 
 
-class LSTMLayer(jit.ScriptModule):
+class LSTMLayer(nn.Module):
     def __init__(self, cell, *cell_args):
         super(LSTMLayer, self).__init__()
         self.cell = cell(*cell_args)
 
-    @jit.script_method
     def forward(self, input, state):
         # type: (Tensor, Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Get mini batches of data on each timestamp
@@ -1308,24 +1312,22 @@ class LSTMLayer(jit.ScriptModule):
         return torch.stack(outputs), state
 
 
-class ReverseLSTMLayer(jit.ScriptModule):
+class ReverseLSTMLayer(nn.Module):
     def __init__(self, cell, *cell_args):
         super(ReverseLSTMLayer, self).__init__()
         self.cell = cell(*cell_args)
 
-    @jit.script_method
     def forward(self, input, state):
         # type: (Tensor, Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Get mini batches of data on each timestamp
         inputs = du.utils.reverse(input.unbind(0))
-        outputs = jit.annotate(List[Tensor], [])
         for i in range(len(inputs)):
             out, state = self.cell(inputs[i], state)
             outputs += [out]
         return torch.stack(du.utils.reverse(outputs)), state
 
 
-class BidirLSTMLayer(jit.ScriptModule):
+class BidirLSTMLayer(nn.Module):
     __constants__ = ['directions']
 
     def __init__(self, cell, *cell_args):
@@ -1335,12 +1337,11 @@ class BidirLSTMLayer(jit.ScriptModule):
             ReverseLSTMLayer(cell, *cell_args),
         ])
 
-    @jit.script_method
     def forward(self, input, states):
         # type: (Tensor, List[Tuple[Tensor, Tensor]]) -> Tuple[Tensor, List[Tuple[Tensor, Tensor]]]
         # List[LSTMState]: [forward LSTMState, backward LSTMState]
-        outputs = jit.annotate(List[Tensor], [])
-        output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
+        outputs = list()
+        output_states = list()
         # XXX: enumerate https://github.com/pytorch/pytorch/issues/14471
         i = 0
         for direction in self.directions:
@@ -1352,17 +1353,16 @@ class BidirLSTMLayer(jit.ScriptModule):
         return torch.cat(outputs, -1), output_states
 
 
-class TLSTMLayer(jit.ScriptModule):
+class TLSTMLayer(nn.Module):
     def __init__(self, cell, *cell_args):
         super(TLSTMLayer, self).__init__()
         self.cell = cell(*cell_args)
 
-    @jit.script_method
     def forward(self, input, state, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Get mini batches of data on each timestamp
         inputs = input.unbind(0)
-        outputs = []
+        outputs = list()
         # Run the LSTM cell on each timestamp, for multiple sequences at the same time
         for i in range(len(inputs)):
             out, state = self.cell(inputs[i], state, delta_ts[:, i])
@@ -1370,24 +1370,22 @@ class TLSTMLayer(jit.ScriptModule):
         return torch.stack(outputs), state
 
 
-class ReverseTLSTMLayer(jit.ScriptModule):
+class ReverseTLSTMLayer(nn.Module):
     def __init__(self, cell, *cell_args):
         super(ReverseTLSTMLayer, self).__init__()
         self.cell = cell(*cell_args)
 
-    @jit.script_method
     def forward(self, input, state, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # Get mini batches of data on each timestamp
         inputs = du.utils.reverse(input.unbind(0))
-        outputs = jit.annotate(List[Tensor], [])
         for i in range(len(inputs)):
             out, state = self.cell(inputs[i], state, delta_ts)
             outputs += [out]
         return torch.stack(du.utils.reverse(outputs)), state
 
 
-class BidirTLSTMLayer(jit.ScriptModule):
+class BidirTLSTMLayer(nn.Module):
     __constants__ = ['directions']
 
     def __init__(self, cell, *cell_args):
@@ -1397,12 +1395,11 @@ class BidirTLSTMLayer(jit.ScriptModule):
             ReverseTLSTMLayer(cell, *cell_args),
         ])
 
-    @jit.script_method
     def forward(self, input, states, delta_ts=torch.tensor(np.nan)):
         # type: (Tensor, Tuple[Tensor, Tensor], Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]
         # List[LSTMState]: [forward LSTMState, backward LSTMState]
-        outputs = jit.annotate(List[Tensor], [])
-        output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
+        outputs = list()
+        output_states = list()
         # XXX: enumerate https://github.com/pytorch/pytorch/issues/14471
         i = 0
         for direction in self.directions:
@@ -1414,7 +1411,7 @@ class BidirTLSTMLayer(jit.ScriptModule):
         return torch.cat(outputs, -1), output_states
 
 
-class StackedLSTMWithDropout(jit.ScriptModule):
+class StackedLSTMWithDropout(nn.Module):
     # Necessary for iterating through self.layers and dropout support
     __constants__ = ['layers', 'num_layers']
 
@@ -1433,11 +1430,10 @@ class StackedLSTMWithDropout(jit.ScriptModule):
 
         self.dropout_layer = nn.Dropout(0.4)
 
-    @jit.script_method
     def forward(self, input, states):
         # type: (Tensor, List[Tuple[Tensor, Tensor]]) -> Tuple[Tensor, List[Tuple[Tensor, Tensor]]]
         # List[LSTMState]: One state per layer
-        output_states = jit.annotate(List[Tuple[Tensor, Tensor]], [])
+        output_states = list()
         output = input
         # XXX: enumerate https://github.com/pytorch/pytorch/issues/14471
         i = 0
