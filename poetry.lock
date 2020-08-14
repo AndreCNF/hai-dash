@@ -246,6 +246,7 @@ tqdm = "^4.43.0"
 reference = "fdd3c411db5ff3cfc5cff1f47f46e0df1a0bd175"
 type = "git"
 url = "https://github.com/AndreCNF/data-utils.git"
+
 [[package]]
 category = "main"
 description = "Distributed scheduler for Dask"
@@ -321,6 +322,17 @@ itsdangerous = ">=0.24"
 dev = ["pytest", "coverage", "tox", "sphinx", "pallets-sphinx-themes", "sphinxcontrib-log-cabinet", "sphinx-issues"]
 docs = ["sphinx", "pallets-sphinx-themes", "sphinxcontrib-log-cabinet", "sphinx-issues"]
 dotenv = ["python-dotenv"]
+
+[[package]]
+category = "main"
+description = "Adds caching support to your Flask application"
+name = "flask-caching"
+optional = false
+python-versions = "*"
+version = "1.9.0"
+
+[package.dependencies]
+Flask = "*"
 
 [[package]]
 category = "main"
@@ -622,6 +634,7 @@ tqdm = "^4.32"
 reference = "1fc742955a9af248ec1a831a8b16898279b0ad76"
 type = "git"
 url = "https://github.com/AndreCNF/model-interpreter.git"
+
 [[package]]
 category = "main"
 description = "Modin: Make your pandas code run faster by changing one line of code."
@@ -1232,7 +1245,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "d1257ca5c5563fb6ca632eb11f924d9177646f07e202916d40c9133baa40057b"
+content-hash = "0a990f225688673ac32fbb8313bc0804d6e665897763c128aa2ef19e1cfddd46"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -1334,6 +1347,10 @@ falcon = [
 flask = [
     {file = "Flask-1.1.1-py2.py3-none-any.whl", hash = "sha256:45eb5a6fd193d6cf7e0cf5d8a5b31f83d5faae0293695626f539a823e93b13f6"},
     {file = "Flask-1.1.1.tar.gz", hash = "sha256:13f9f196f330c7c2c5d7a5cf91af894110ca0215ac051b5844701f2bfd934d52"},
+]
+flask-caching = [
+    {file = "Flask-Caching-1.9.0.tar.gz", hash = "sha256:a0356ad868b1d8ec2d0e675a6fe891c41303128f8904d5d79e180d8b3f952aff"},
+    {file = "Flask_Caching-1.9.0-py2.py3-none-any.whl", hash = "sha256:e6ef2e2af84e13c4fd32c1839c1943a42f11b6b0fbcfdd6bf46547ea5482dbfe"},
 ]
 flask-compress = [
     {file = "Flask-Compress-1.4.0.tar.gz", hash = "sha256:468693f4ddd11ac6a41bca4eb5f94b071b763256d54136f77957cfee635badb3"},

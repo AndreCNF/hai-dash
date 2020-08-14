@@ -16,6 +16,7 @@ shap = {git = "https://github.com/AndreCNF/shap.git"}
 dash-table = "^4.9.0"
 data-utils = {git = "https://github.com/AndreCNF/data-utils.git"}
 model-interpreter = {git = "https://github.com/AndreCNF/model-interpreter.git"}
+Flask-Caching = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
 

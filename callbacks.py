@@ -13,6 +13,8 @@ import numpy as np
 from time import time
 import yaml
 import inspect
+import random
+from flask_caching import Cache
 from app import app
 import layouts
 
@@ -27,6 +29,15 @@ is_custom = True
 padding_value = 999999
 # Time threshold to prevent updates during this seconds after clicking in a data point
 clicked_thrsh = 5
+
+# Setup cache
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': 'cache/'
+})
+
+# Only reset cache after one week
+TIMEOUT = 604800
 
 # Index callback
 @app.callback(Output('page-content', 'children'),
@@ -392,16 +403,20 @@ def create_feat_import_card(df, card_title='Feature importance', max_display=Non
     ], style=style)
     return feat_import_card
 
+@cache.memoize(timeout=TIMEOUT)
+def update_feat_import_preview(model_name, df_store):
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(df_store)
+    return create_feat_import_plot(df, max_display=3,
+                                   xaxis_title='Average impact on output')
+
 @app.callback(Output('feature_importance_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
                Input('model_store', 'modified_timestamp')],
               [State('model_name_div', 'children'),
                State('dataset_store', 'data')])
-def update_feat_import_preview(dataset_mod, model_mod, model_name, df_store):
-    # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
-    return create_feat_import_plot(df, max_display=3,
-                                   xaxis_title='Average impact on output')
+def update_feat_import_preview_callback(dataset_mod, model_mod, model_name, df_store):
+    return update_feat_import_preview(model_name, df_store)
 
 def create_fltd_feat_import_cards(df, data_filter=None):
     # List that will contain all the cards that show feature importance for
@@ -443,6 +458,7 @@ def create_fltd_feat_import_cards(df, data_filter=None):
 @app.callback(Output('feature_importance_cards', 'children'),
               [Input('feature_importance_dropdown', 'value')],
               [State('dataset_store', 'data')])
+@cache.memoize(timeout=TIMEOUT)
 def output_feat_import_page_cards(data_filter, df_store):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -465,13 +481,8 @@ def output_feat_import_page_cards(data_filter, df_store):
      for card in create_fltd_feat_import_cards(df, fltr)]
     return cards_list
 
-@app.callback(Output('detailed_analysis_preview', 'figure'),
-              [Input('dataset_store', 'modified_timestamp'),
-               Input('model_store', 'modified_timestamp')],
-              [State('model_name_div', 'children'),
-               State('dataset_store', 'data'),
-               State('model_store', 'data')])
-def update_det_analysis_preview(dataset_mod, model_mod, model_name, df_store, model_file_name):
+@cache.memoize(timeout=TIMEOUT)
+def update_det_analysis_preview(df_store, model_file_name, id_column):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -490,6 +501,10 @@ def update_det_analysis_preview(dataset_mod, model_mod, model_name, df_store, mo
                     if not feature.endswith('_shap')]
     tmp_df = df.copy()
     tmp_df = tmp_df[column_names]
+    # Only load 4 sequences
+    ids = list(tmp_df[id_column].unique())
+    ids = random.sample(ids, 4)
+    tmp_df = tmp_df[tmp_df[id_column].isin(ids)]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
     interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
@@ -506,13 +521,18 @@ def update_det_analysis_preview(dataset_mod, model_mod, model_name, df_store, mo
                                                 font_family='Roboto', font_size=14,
                                                 font_color=layouts.colors['body_font_color'])
 
-@app.callback(Output('instance_importance_graph', 'figure'),
+@app.callback(Output('detailed_analysis_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
                Input('model_store', 'modified_timestamp')],
               [State('dataset_store', 'data'),
                State('model_store', 'data'),
-               State('model_name_div', 'children')])
-def update_full_inst_import(dataset_mod, model_mod, df_store, model_file_name, model_name):
+               State('id_col_name_store', 'data')])
+def update_det_analysis_preview_callback(dataset_mod, model_mod, df_store, model_file_name,
+                                         id_column):
+    return update_det_analysis_preview(df_store, model_file_name, id_column)
+
+@cache.memoize(timeout=TIMEOUT)
+def update_full_inst_import(df_store, model_file_name):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -546,6 +566,14 @@ def update_full_inst_import(dataset_mod, model_mod, df_store, model_file_name, m
                                                 background_color=layouts.colors['gray_background'],
                                                 font_family='Roboto', font_size=14,
                                                 font_color=layouts.colors['body_font_color'])
+
+@app.callback(Output('instance_importance_graph', 'figure'),
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('model_store', 'modified_timestamp')],
+              [State('dataset_store', 'data'),
+               State('model_store', 'data')])
+def update_full_inst_import_callback(dataset_mod, model_mod, df_store, model_file_name):
+    return update_full_inst_import(df_store, model_file_name)
 
 @app.callback(Output('salient_features_list', 'children'),
               [Input('instance_importance_graph', 'hoverData'),
