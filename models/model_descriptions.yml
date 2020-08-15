@@ -1,0 +1,24 @@
+model_type:
+  RNN:
+    Traditional Recurrent Neural Network type model, which uses a simple recurrent connection with few parameters and a single hidden memory.
+  LSTM:
+    Advanced RNN model, named Long Short-Term Memory, which adds another hidden connection and a more sophisticated memory management, that may allow for longer memory and a more stable training process.
+  MF1-LSTM:
+    LSTM-based recurrent model that accounts for time variation by scaling the forget gate's output according to the difference between consecutive samples' timestamps.
+bidir:
+  is bidirectional:
+    Analyses previous instances of each time series in both directions, from back to the front and backwards.
+  single direction:
+    Only sees samples in the direction from the past to the present.
+embedding:
+  one hot encoded:
+    Categorical variables get a single, binary feature to each category.
+  pre-embedded:
+    Includes a pre-trained embedding layer, i.e. a mapping function that converts categories into a continuous vector.
+  with embedding:
+    Includes an embedding layer, i.e. a mapping function that converts categories into a continuous vector, which was trained simultaneously with the rest of the model.
+delta_ts:
+  uses delta_ts:
+    Has time variation between samples in consideration, using that information as an additional feature.
+  no delta_ts:
+    Doesn't directly consider time variation between samples.

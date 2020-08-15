@@ -136,24 +136,23 @@ detail_analysis_layout = html.Div([
         children=[
             dbc.Card([
                 dbc.CardBody([
-                        # [TODO] Update the patient ID in this card's title according to the selected data point
                         html.H5(
                             'Patient Y\'s salient features',
                             id='salient_features_card_title',
                             className='card-title'
                         ),
-                        dbc.ListGroup(id='salient_features_list',
-                                      children=[],
-                                      style=dict(
-                                          height='20em',
-                                          marginBottom='1em'
-                                      )
+                        dbc.ListGroup(
+                            id='salient_features_list',
+                            children=[],
+                            style=dict(
+                                height='20em',
+                                marginBottom='1em'
+                            )
                         ),
                 ])
             ], style=dict(height='26em')),
             dbc.Card([
                 dbc.CardBody([
-                        # [TODO] Update the timestamp in this card's title according to the selected data point
                         html.H5(
                             'Feature importance on ts=X',
                             id='ts_feature_importance_card_title',
@@ -256,6 +255,9 @@ main_layout = html.Div([
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dcc.Store(id='model_store', storage_type='memory'),
+    dcc.Store(id='model_metrics', storage_type='memory'),
+    dcc.Store(id='model_hyperparam', storage_type='memory'),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(
@@ -323,12 +325,19 @@ main_layout = html.Div([
                     html.H5('Performance', className='card-title'),
                     dbc.Row([
                         dbc.Col(html.Div('Accuracy'), width=6),
-                        dbc.Col(du.visualization.indicator_plot(85, type='bullet', background_color=colors['gray_background'],
-                                                                dash_id='accuracy_indicator',
-                                                                font_color=colors['body_font_color'],
-                                                                suffix='%', output_type='dash',
-                                                                dash_height='1em'),
-                                width=6),
+                        dbc.Col(
+                            dcc.Graph(
+                                id='test_accuracy_indicator_preview',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='1em'
+                                ),
+                                animate=True
+                            ),
+                            width=6
+                        ),
                         ],
                         style=dict(
                             height='2em',
@@ -337,11 +346,19 @@ main_layout = html.Div([
                     ),
                     dbc.Row([
                         dbc.Col(html.Div('AUC'), width=6),
-                        dbc.Col(du.visualization.indicator_plot(91, type='bullet', background_color=colors['gray_background'],
-                                                                dash_id='accuracy_indicator', font_color=colors['body_font_color'],
-                                                                prefix='0.', output_type='dash',
-                                                                dash_height='1em'),
-                                width=6),
+                        dbc.Col(
+                            dcc.Graph(
+                                id='test_auc_indicator_preview',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='1em'
+                                ),
+                                animate=True
+                            ),
+                            width=6
+                        ),
                         ],
                         style=dict(
                             height='2em',
@@ -350,11 +367,19 @@ main_layout = html.Div([
                     ),
                     dbc.Row([
                         dbc.Col(html.Div('F1'), width=6),
-                        dbc.Col(du.visualization.indicator_plot(60, type='bullet', background_color=colors['gray_background'],
-                                                                dash_id='accuracy_indicator', font_color=colors['body_font_color'],
-                                                                prefix='0.', output_type='dash',
-                                                                dash_height='1em'),
-                                width=6),
+                        dbc.Col(
+                            dcc.Graph(
+                                id='test_f1_indicator_preview',
+                                config=dict(
+                                    displayModeBar=False
+                                ),
+                                style=dict(
+                                    height='1em'
+                                ),
+                                animate=True
+                            ),
+                            width=6
+                        ),
                         ],
                         style=dict(
                             height='2em',
@@ -433,6 +458,9 @@ performance_layout = html.Div([
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dcc.Store(id='model_store', storage_type='memory'),
+    dcc.Store(id='model_metrics', storage_type='memory'),
+    dcc.Store(id='model_hyperparam', storage_type='memory'),
     html.Div([
         dcc.Dropdown(
             id='model_dropdown',
@@ -485,102 +513,52 @@ performance_layout = html.Div([
         dbc.Card([
             dbc.CardHeader('Model description'),
             dbc.CardBody([
-                    html.P(
-                        '''LSTM-based recurrent model that accounts for time
-                        variation by scaling the forget gate's output according
-                        to the difference between consecutive samples\'
-                        timestamps.''',
-                        className='card-text',
-                    ),
+                dbc.ListGroup(
+                    id='model_description_list',
+                    children=[]
+                ),
             ])
         ]),
         dbc.Card([
             dbc.CardBody([
-                    html.H5(
-                        'Test AUC',
-                        className='card-title',
-                        style=dict(color=colors['header_font_color'])
+                html.H5(
+                    'Test AUC',
+                    className='card-title',
+                    style=dict(color=colors['header_font_color'])
+                ),
+                dcc.Graph(
+                    id='test_auc_gauge',
+                    config=dict(
+                        displayModeBar=False
                     ),
-                    # [TODO] Add the "animate" parameter to the indicator_plot method
-                    du.visualization.indicator_plot(91, type='gauge', background_color=colors['gray_background'],
-                                                    dash_id='perf_auc_gauge',
-                                                    font_color=colors['header_font_color'],
-                                                    font_size=20,
-                                                    prefix='0.', output_type='dash',
-                                                    dash_height='10em')
+                    style=dict(
+                        height='17em'
+                    ),
+                    animate=True
+                )
             ])
         ])
     ], style=dict(margin='2em')),
     dbc.CardDeck([
         dbc.Card([
             dbc.CardHeader('Model parameters'),
-            dbc.CardBody([
-                    dbc.Table([
+            dbc.CardBody([dbc.Table(
+                id='hyperparam_table',
+                children=[
                         html.Tr([html.Td('n_hidden'), html.Td(100)]),
                         html.Tr([html.Td('n_rnn_layers'), html.Td(3)]),
                         html.Tr([html.Td('embedding_dim'), html.Td(str([1, 2, 3]))])
-                    ], style=dict(color=colors['body_font_color']))
+                ], 
+                style=dict(color=colors['body_font_color']))
             ])
         ]),
         dbc.Card([
             dbc.CardBody([
-                    dbc.Table([
-                        html.Thead(html.Tr([html.Th('Metric'), html.Th('Train'), html.Th('Val'), html.Th('Test')])),
-                        html.Tr([
-                            html.Td('AUC', style=dict(width='10%')),
-                            html.Td(du.visualization.indicator_plot(96, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(90, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(91, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                        ]),
-                        html.Tr([
-                            html.Td('F1', style=dict(width='10%')),
-                            html.Td(du.visualization.indicator_plot(82, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(30, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(60, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    prefix='0.', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                        ]),
-                        html.Tr([
-                            html.Td('Acc', style=dict(width='10%')),
-                            html.Td(du.visualization.indicator_plot(97, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    suffix='%', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(88, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    suffix='%', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                            html.Td(du.visualization.indicator_plot(85, type='bullet', background_color=colors['gray_background'],
-                                                                    dash_id='accuracy_indicator',
-                                                                    font_color=colors['body_font_color'],
-                                                                    suffix='%', output_type='dash',
-                                                                    dash_height='1em'), style=dict(width='22.5%')),
-                        ]),
-                    ], style=dict(color=colors['body_font_color']))
+                dbc.Table(
+                    id='metrics_table',
+                    children=[], 
+                    style=dict(color=colors['body_font_color'])
+                )
             ])
         ])
     ], style=dict(
@@ -602,6 +580,9 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dcc.Store(id='model_store', storage_type='memory'),
+    dcc.Store(id='model_metrics', storage_type='memory'),
+    dcc.Store(id='model_hyperparam', storage_type='memory'),
     html.Div([
         dcc.Dropdown(
             id='dataset_dropdown',
@@ -662,6 +643,9 @@ feat_import_layout = html.Div([
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
+    dcc.Store(id='model_store', storage_type='memory'),
+    dcc.Store(id='model_metrics', storage_type='memory'),
+    dcc.Store(id='model_hyperparam', storage_type='memory'),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(

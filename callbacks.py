@@ -20,7 +20,7 @@ import layouts
 
 # Path to the directory where all the ML models are stored
 models_path = 'models/'
-metrics_path = 'metrics/'
+metrics_path = 'metrics/individual_models/'
 # [TODO] Load the SHAP interpreter's expected value on the current model and dataset
 expected_value = 0.5
 # [TODO] Set and update whether the model is from a custom type or not
@@ -29,6 +29,9 @@ is_custom = True
 padding_value = 999999
 # Time threshold to prevent updates during this seconds after clicking in a data point
 clicked_thrsh = 5
+# Load the model descriptions file
+descriptions_stream = open(f'{models_path}model_descriptions.yml', 'r')
+descriptions = yaml.load(descriptions_stream, Loader=yaml.FullLoader)
 
 # Setup cache
 cache = Cache(app.server, config={
@@ -165,18 +168,128 @@ def load_model_callback(model_name, dataset_name):
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the metrics file
-    # metrics_stream = open(f'{metrics_path}{model_file_name}.yml', 'r')
-    # metrics = yaml.load(metrics_stream, Loader=yaml.FullLoader)
+    metrics_stream = open(f'{metrics_path}{model_file_name}.yml', 'r')
+    metrics = yaml.load(metrics_stream, Loader=yaml.FullLoader)
     # Register all the hyperparameters
     model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     model_args = inspect.getfullargspec(model.__init__).args[1:]
-    hyper_params = dict([(param, getattr(model, param))
+    hyperparams = dict([(param, str(getattr(model, param)))
                         for param in model_args])
     return (model_file_name,
-            # metrics,
-            None,
-            hyper_params)
+            metrics,
+            hyperparams)
+
+@app.callback(Output('model_description_list', 'children'),
+              [Input('model_store', 'modified_timestamp')],
+              [State('model_store', 'data')])
+def load_model_description(model_mod, model_file_name):
+    global descriptions
+    description_list = list()
+    # Add model type description
+    if 'mf1lstm' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['model_type']['MF1-LSTM']))
+    elif 'lstm' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['model_type']['LSTM']))
+    elif 'rnn' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['model_type']['RNN']))
+    # Add direction description
+    if 'bidir' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['bidir']['is bidirectional']))
+    else:
+        description_list.append(dbc.ListGroupItem(descriptions['bidir']['single direction']))
+    # Add embedding description
+    if 'pre_embedded' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['embedding']['pre-embedded']))
+    elif 'with_embedding' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['embedding']['with embedding']))
+    else:
+        description_list.append(dbc.ListGroupItem(descriptions['embedding']['one hot encoded']))
+    # Add time variation description
+    if 'delta_ts' in model_file_name:
+        description_list.append(dbc.ListGroupItem(descriptions['delta_ts']['uses delta_ts']))
+    else:
+        description_list.append(dbc.ListGroupItem(descriptions['delta_ts']['no delta_ts']))
+    return description_list
+
+@app.callback(Output('hyperparam_table', 'children'),
+              [Input('model_hyperparam', 'modified_timestamp')],
+              [State('model_hyperparam', 'data')])
+def load_hyperparameters(hyperparam_mod, hyperparams):
+    rows = list()
+    for key, val in hyperparams.items():
+        # Add each table row, corresponding to each hyperparameter
+        rows.append(html.Tr([html.Td(key), html.Td(val)]))
+    return rows
+
+@app.callback(Output('metrics_table', 'children'),
+              [Input('model_metrics', 'modified_timestamp')],
+              [State('model_metrics', 'data')])
+def load_metrics(metrics_mod, metrics):
+    rows = list()
+    # Add the table header
+    rows.append(html.Thead(html.Tr([html.Th('Metric'), html.Th('Train'), html.Th('Val'), html.Th('Test')])))
+    for key, value in metrics['test'].items():
+        # Get the values
+        train_value = metrics['train'][key]
+        val_value = metrics['val'][key]
+        test_value = metrics['test'][key]
+        # Configure the plot, according to the metrics type
+        if key == 'accuracy' or key == 'precision' or key == 'recall':
+            train_value = train_value * 100
+            val_value = val_value * 100
+            test_value = test_value * 100
+            max_val = 100
+            higher_is_better = True
+            suffix = '%'
+        elif key == 'loss':
+            # Using a fictional maximum loss of 1.3, as usually a loss that
+            # big is associated with a bad model performance
+            max_val = 1.3
+            higher_is_better = False
+            suffix = None
+        else:
+            max_val = 1
+            higher_is_better = True
+            suffix = None
+        # Add each table row, corresponding to each metric
+        rows.append(html.Tr([
+            html.Td(key), 
+            html.Td(
+                du.visualization.indicator_plot(train_value, min_val=0, max_val=max_val,
+                                                type='bullet', 
+                                                higher_is_better=higher_is_better,
+                                                background_color=layouts.colors['gray_background'],
+                                                dash_id=f'train_{key}_indicator',
+                                                font_color=layouts.colors['body_font_color'],
+                                                suffix=suffix, output_type='dash',
+                                                dash_height='1.5em', animate=True), 
+                style=dict(width='30%')
+            ), 
+            html.Td(
+                du.visualization.indicator_plot(val_value, min_val=0, max_val=max_val,
+                                                type='bullet', 
+                                                higher_is_better=higher_is_better,
+                                                background_color=layouts.colors['gray_background'],
+                                                dash_id=f'val_{key}_indicator',
+                                                font_color=layouts.colors['body_font_color'],
+                                                suffix=suffix, output_type='dash',
+                                                dash_height='1.5em', animate=True), 
+                style=dict(width='30%')
+            ), 
+            html.Td(
+                du.visualization.indicator_plot(test_value, min_val=0, max_val=max_val,
+                                                type='bullet', 
+                                                higher_is_better=higher_is_better,
+                                                background_color=layouts.colors['gray_background'],
+                                                dash_id=f'test_{key}_indicator',
+                                                font_color=layouts.colors['body_font_color'],
+                                                suffix=suffix, output_type='dash',
+                                                dash_height='1.5em', animate=True), 
+                style=dict(width='30%')
+            )
+        ]))
+    return rows
 
 # Dropdown callbacks
 @app.callback(Output('dataset_name_div', 'children'),
@@ -363,6 +476,51 @@ def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
     return outcome, card_color
 
 # Plotting
+@app.callback([Output('test_accuracy_indicator_preview', 'figure'),
+               Output('test_auc_indicator_preview', 'figure'),
+               Output('test_f1_indicator_preview', 'figure')],
+              [Input('model_metrics', 'modified_timestamp')],
+              [State('model_metrics', 'data')])
+def update_performance_preview(metrics_mod, metrics):
+    # Get the values
+    acc = metrics['test']['accuracy']
+    auc = metrics['test']['AUC']
+    f1 = metrics['test']['F1']
+    # Accuracy plot
+    acc = acc * 100
+    acc_plot = du.visualization.indicator_plot(acc, min_val=0, max_val=100,
+                                               type='bullet', 
+                                               higher_is_better=True,
+                                               background_color=layouts.colors['gray_background'],
+                                               font_color=layouts.colors['body_font_color'],
+                                               suffix='%', output_type='plotly')
+    # AUC plot
+    auc_plot = du.visualization.indicator_plot(auc, min_val=0, max_val=1,
+                                               type='bullet', 
+                                               higher_is_better=True,
+                                               background_color=layouts.colors['gray_background'],
+                                               font_color=layouts.colors['body_font_color'],
+                                               suffix=None, output_type='plotly')
+    # F1 plot
+    f1_plot = du.visualization.indicator_plot(auc, min_val=0, max_val=1,
+                                              type='bullet', 
+                                              higher_is_better=True,
+                                              background_color=layouts.colors['gray_background'],
+                                              font_color=layouts.colors['body_font_color'],
+                                              suffix=None, output_type='plotly')
+    return acc_plot, auc_plot, f1_plot
+
+@app.callback(Output('test_auc_gauge', 'figure'),
+              [Input('model_metrics', 'modified_timestamp')],
+              [State('model_metrics', 'data')])
+def render_auc_gauge(metrics_mod, metrics):
+    return du.visualization.indicator_plot(metrics['test']['AUC'], min_val=0, max_val=1,
+                                           type='gauge', 
+                                           background_color=layouts.colors['gray_background'],
+                                           font_color=layouts.colors['header_font_color'],
+                                           font_size=20,
+                                           output_type='plotly')
+
 def create_feat_import_plot(df, max_display=None,
                             xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)'):
     # Get the SHAP values into a NumPy array and the feature names
