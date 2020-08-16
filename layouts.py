@@ -32,7 +32,9 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -141,14 +143,20 @@ detail_analysis_layout = html.Div([
                             id='salient_features_card_title',
                             className='card-title'
                         ),
-                        dbc.ListGroup(
-                            id='salient_features_list',
-                            children=[],
-                            style=dict(
-                                height='20em',
-                                marginBottom='1em'
-                            )
-                        ),
+                        dcc.Loading(
+                            id='loading_salient_features_list',
+                            children=[
+                                dbc.ListGroup(
+                                    id='salient_features_list',
+                                    children=[],
+                                    style=dict(
+                                        height='20em',
+                                        marginBottom='1em'
+                                    )
+                                )
+                            ],
+                            type='default',
+                        )
                 ])
             ], style=dict(height='26em')),
             dbc.Card([
@@ -158,30 +166,34 @@ detail_analysis_layout = html.Div([
                             id='ts_feature_importance_card_title',
                             className='card-title'
                         ),
-                        dcc.Graph(id='ts_feature_importance_graph',
-                                  config=dict(
-                                      displayModeBar=False
-                                  ),
-                                  style=dict(
-                                      height='20em',
-                                      marginBottom='1em'
-                                  )
-                        ),
+                        dcc.Loading(
+                            id='loading_ts_feature_importance_graph',
+                            children=[
+                                dcc.Graph(
+                                    id='ts_feature_importance_graph',
+                                    config=dict(
+                                        displayModeBar=False
+                                    ),
+                                    style=dict(
+                                        height='20em',
+                                        marginBottom='1em'
+                                    )
+                                )
+                            ],
+                            type='default',
+                        )
                 ])
             ], style=dict(height='26em')),
             dbc.Card([
                 dbc.CardBody([
                         html.H5(
-                            'Patient survives',
+                            'Patient outcome',
                             id='patient_outcome_text',
                             className='card-title',
                             style=dict(color=colors['header_font_color'])
                         )
                 ])
-            # [TODO] Change the card's color between "success" and "danger", according to the outcome
-            ], id='patient_outcome_card', color='success', style=dict(height='5em'
-            # , margin='2em'
-            )),
+            ], id='patient_outcome_card', color='secondary', style=dict(height='5em')),
             dbc.Card([
                 dbc.CardBody([
                         html.H5('Final output', className='card-title'),
@@ -252,7 +264,9 @@ main_layout = html.Div([
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -455,7 +469,9 @@ performance_layout = html.Div([
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -577,7 +593,9 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -640,7 +658,9 @@ feat_import_layout = html.Div([
     dcc.Store(id='dataset_store', storage_type='memory'),
     dcc.Store(id='id_col_name_store', storage_type='memory'),
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
+    dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),

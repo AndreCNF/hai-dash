@@ -21,8 +21,6 @@ import layouts
 # Path to the directory where all the ML models are stored
 models_path = 'models/'
 metrics_path = 'metrics/individual_models/'
-# [TODO] Load the SHAP interpreter's expected value on the current model and dataset
-expected_value = 0.5
 # [TODO] Set and update whether the model is from a custom type or not
 is_custom = True
 # Padding value used to pad the data sequences up to a maximum length
@@ -73,29 +71,39 @@ def load_dataset(file_name, file_path='', file_ext='.csv',
 @app.callback([Output('dataset_store', 'data'),
                Output('id_col_name_store', 'data'),
                Output('ts_col_name_store', 'data'),
-               Output('cols_to_remove_store', 'data')],
+               Output('label_col_name_store', 'data'),
+               Output('cols_to_remove_store', 'data'),
+               Output('reset_data_bttn', 'disabled')],
               [Input('dataset_name_div', 'children'),
                Input('sample_table', 'data_timestamp'),
-               Input('model_store', 'data')],
+               Input('model_store', 'data'),
+               Input('reset_data_bttn', 'n_clicks')],
               [State('sample_table', 'data'),
                State('dataset_store', 'data')])
-def load_dataset_callback(dataset_name, dataset_mod, model_file_name, new_data, df_store):
+def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
+                          reset_clicks, new_data, df_store):
     if callback_context.triggered[0]['prop_id'].split('.')[0] != 'sample_table':
         # Loading a dataset from disk
         if dataset_name == 'ALS':
             data_file_name = f'fcul_als_with_shap_for_{model_file_name}'
+            label_column = 'niv_label'
         elif dataset_name == 'Toy Example':
             data_file_name = f'toy_example_with_shap_for_{model_file_name}'
+            label_column = 'label'
         else:
             raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
         df = load_dataset(file_name=data_file_name, file_path='data/',
                           file_ext='.csv', id_column='subject_id')
-        return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+        return df.to_dict('records'), 'subject_id', 'ts', label_column, [0, 1], True
     else:
+        if dataset_name == 'ALS':
+            label_column = 'niv_label'
+        elif dataset_name == 'Toy Example':
+            label_column = 'label'
         # Refreshing the data with a new edited sample
         df = apply_data_changes(new_data, df_store, id_column='subject_id',
-                                ts_column='ts', model_file_name=model_file_name)
-        return df.to_dict('records'), 'subject_id', 'ts', [0, 1]
+                                ts_column='ts', label_column=label_column, model_file_name=model_file_name)
+        return df.to_dict('records'), 'subject_id', 'ts', label_column, [0, 1], False
 
 @app.callback([Output('model_store', 'data'),
                Output('model_metrics', 'data'),
@@ -319,12 +327,15 @@ def update_edit_button(n_clicks):
               [State('dataset_store', 'data'),
                State('id_col_name_store', 'data'),
                State('ts_col_name_store', 'data'),
+               State('label_col_name_store', 'data'),
                State('instance_importance_graph', 'hoverData'),
                State('instance_importance_graph', 'clickData'),
                State('clicked_ts', 'children'),
-               State('hovered_ts', 'children')])
-def update_sample_table(n_clicks, df_store, id_column, ts_column, 
-                        hovered_data, clicked_data, clicked_ts, hovered_ts):
+               State('hovered_ts', 'children'),
+               State('model_store', 'data')])
+def update_sample_table(n_clicks, df_store, id_column, ts_column, label_column,
+                        hovered_data, clicked_data, clicked_ts, hovered_ts,
+                        model_file_name):
     if n_clicks % 2 == 0 or (hovered_data is None and clicked_data is None):
         # Stop editing
         return None, None, True, 'Sample from patient Y on timestamp X'
@@ -352,7 +363,9 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column,
         shap_column_names = [feature for feature in filtered_df.columns
                              if feature.endswith('_shap')]
         filtered_df.drop(columns=shap_column_names, inplace=True)
-        filtered_df.drop(columns=['delta_ts', 'label'], inplace=True)
+        filtered_df.drop(columns=label_column, inplace=True)
+        if 'delta_ts' in filtered_df.columns:
+            filtered_df.drop(columns='delta_ts', inplace=True)
         # Set the column names as a list of dictionaries, as data table requires
         columns = filtered_df.columns
         data_columns = [dict(name=column, id=column) for column in columns]
@@ -437,9 +450,11 @@ def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
                State('dataset_store', 'data'),
                State('dataset_name_div', 'children'),
                State('id_col_name_store', 'data'),
-               State('ts_col_name_store', 'data')])
+               State('ts_col_name_store', 'data'),
+               State('label_col_name_store', 'data')])
 def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
-                           df_store, dataset_name, id_column, ts_column):
+                           df_store, dataset_name, id_column, 
+                           ts_column, label_column):
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
@@ -460,7 +475,7 @@ def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
     filtered_df = df.copy()
     filtered_df = filtered_df[filtered_df[id_column] == subject_id]
     # Find if the patient dies
-    patient_dies = (filtered_df.tail(1).label == 1).values[0]
+    patient_dies = (filtered_df.tail(1)[label_column] == 1).values[0]
     if patient_dies == True:
         if dataset_name == 'ALS':
             outcome = 'Patient ends up using NIV'
@@ -654,6 +669,8 @@ def update_det_analysis_preview(df_store, model_file_name, id_column):
     # Load the model
     model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
+    # Guarantee that the model is in evaluation mode, so as to deactivate dropout
+    model.eval()
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
                     if not feature.endswith('_shap')]
@@ -704,6 +721,8 @@ def update_full_inst_import(df_store, model_file_name):
     # Load the model
     model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
+    # Guarantee that the model is in evaluation mode, so as to deactivate dropout
+    model.eval()
     # Create a dataframe copy that doesn't include the feature importance columns
     column_names = [feature for feature in df.columns
                     if not feature.endswith('_shap')]
@@ -784,30 +803,18 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                Input('dataset_store', 'modified_timestamp'),
                Input('model_name_div', 'children')],
               [State('dataset_store', 'data'),
-               State('model_store', 'data'),
                State('id_col_name_store', 'data'),
+               State('expected_value_store', 'data'),
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children')])
 def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
-                          model_name, df_store, model_file_name, 
-                          id_column, clicked_ts, hovered_ts):
-    global expected_value
+                          model_name, df_store, id_column, 
+                          exp_val, clicked_ts, hovered_ts):
     global clicked_thrsh
-    global models_path
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
-    # Find the model class
-    if 'mf1lstm' in model_file_name:
-        model_class = Models.MF1LSTM
-    elif 'lstm' in model_file_name:
-        model_class = Models.VanillaLSTM
-    elif 'rnn' in model_file_name:
-        model_class = Models.VanillaRNN
-    # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
-                                             ModelClass=model_class)
     # Check whether the current sample has originated from a hover or a click event
     if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's subject ID and timestamp
@@ -829,7 +836,7 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
     shap_values = filtered_df[shap_column_names].to_numpy()
     features = filtered_df[feature_names].to_numpy()
     # Get the instance importance plot
-    return du.visualization.shap_waterfall_plot(expected_value, shap_values, features, feature_names,
+    return du.visualization.shap_waterfall_plot(exp_val, shap_values, features, feature_names,
                                                 max_display=6, 
                                                 background_color=layouts.colors['gray_background'],
                                                 line_color=layouts.colors['body_font_color'], 
@@ -918,7 +925,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model
     return output_plot, final_output
 
 # Data editing
-def apply_data_changes(new_data, df_store, id_column, ts_column, model_file_name):
+def apply_data_changes(new_data, df_store, id_column, ts_column, label_column, model_file_name):
     global is_custom
     global padding_value
     global models_path
@@ -956,7 +963,7 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_file_name
         feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
         feature_names = [id_column, ts_column] + feature_names
         features = torch.from_numpy(seq_df[feature_names].to_numpy().astype(float))
-        labels = torch.from_numpy(seq_df['label'].to_numpy())
+        labels = torch.from_numpy(seq_df[label_column].to_numpy())
         # Make sure that the features are numeric (the edited data might come out in string format)
         # and three-dimensional
         features = features.float().unsqueeze(0)
@@ -970,6 +977,8 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_file_name
         # Load the model
         model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
                                                  ModelClass=model_class)
+        # Guarantee that the model is in evaluation mode, so as to deactivate dropout
+        model.eval()
         # Recalculate the SHAP values
         interpreter = ModelInterpreter(model, model_type='multivariate_rnn',
                                        id_column=0, inst_column=1, 
@@ -984,9 +993,32 @@ def apply_data_changes(new_data, df_store, id_column, ts_column, model_file_name
         if len(labels.shape) == 1:
             labels = labels.unsqueeze(1)
         data_n_shap = np.concatenate([features.numpy(), labels.unsqueeze(0).numpy(), interpreter.feat_scores], axis=2)
-        # data_n_shap_columns = [id_column, ts_column]+feature_names+['label']+shap_column_names
-        # data_n_shap_df = pd.DataFrame(data=data_n_shap.reshape(-1, 19), columns=data_n_shap_columns)
         # Update the current sample in the stored data
         df.loc[(df[id_column] == subject_id)
-               & (df[ts_column] <= ts)] = data_n_shap.reshape(-1, 19)
+               & (df[ts_column] <= ts)] = data_n_shap.squeeze()
         return df
+
+# Additional calculations
+@app.callback(Output('expected_value_store', 'data'),
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('model_store', 'modified_timestamp')],
+              [State('model_store', 'data')])
+def calc_exp_val(dataset_mod, model_mod, model_file_name):
+    global models_path
+    # Find the model class
+    if 'mf1lstm' in model_file_name:
+        model_class = Models.MF1LSTM
+    elif 'lstm' in model_file_name:
+        model_class = Models.VanillaLSTM
+    elif 'rnn' in model_file_name:
+        model_class = Models.VanillaRNN
+    # Load the model
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+                                             ModelClass=model_class)
+    # Put the model in evaluation mode to deactivate dropout
+    model.eval()
+    # Create an all zeroes reference value
+    ref_value = torch.zeros((1, 1, model.n_inputs))
+    # Calculate the expected value by getting the output from the reference value
+    exp_val = model(ref_value).item()
+    return exp_val
