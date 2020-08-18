@@ -43,6 +43,8 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='model_hyperparam', storage_type='memory'),
     # Current final output value
     dcc.Store(id='curr_final_output', storage_type='memory'),
+    # Current selected subject
+    dcc.Store(id='curr_subject', storage_type='memory'),
     # The timestamp of the last time that a data point was clicked
     # or hovered in the instance importance graph
     html.Div(id='clicked_ts', children='0', hidden=True),

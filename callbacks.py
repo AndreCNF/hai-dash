@@ -784,10 +784,14 @@ def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_c
                                      label_column_mod, is_custom_mod, df_store, 
                                      model_file_name, id_column, ts_column, label_column, 
                                      is_custom):
+    if id_column is None or ts_column is None or label_column is None:
+        # Don't update the plot if any of the required column names have not been defined yet
+        raise PreventUpdate
     return update_full_inst_import(df_store, model_file_name, id_column, 
                                    ts_column, label_column, is_custom)
 
-@app.callback(Output('salient_features_list', 'children'),
+@app.callback([Output('salient_features_list', 'children'),
+               Output('curr_subject', 'data')],
               [Input('instance_importance_graph', 'hoverData'),
                Input('instance_importance_graph', 'clickData'),
                Input('dataset_store', 'modified_timestamp'),
@@ -795,10 +799,11 @@ def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_c
               [State('dataset_store', 'data'),
                State('id_col_name_store', 'data'),
                State('clicked_ts', 'children'),
-               State('hovered_ts', 'children')])
+               State('hovered_ts', 'children'),
+               State('curr_subject', 'data')])
 def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
                                  model_name, df_store, id_column, 
-                                 clicked_ts, hovered_ts):
+                                 clicked_ts, hovered_ts, prev_subject):
     global clicked_thrsh
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
@@ -811,6 +816,9 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
     else:
         # Get the selected data point's subject ID
         subject_id = int(hovered_data['points'][0]['y'])
+    if subject_id == prev_subject:
+        # Don't update the salient features if the selected subject ID hasn't changed
+        raise PreventUpdate
     # Filter by the selected data point
     filtered_df = df.copy()
     filtered_df = filtered_df[filtered_df[id_column] == subject_id]
@@ -820,17 +828,18 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
     feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
     shap_values = filtered_df[shap_column_names].to_numpy()
     features = filtered_df[feature_names].to_numpy()
-    # Get the instance importance plot
-    return du.visualization.shap_salient_features(shap_values, features, feature_names,
-                                                  max_display=6,
-                                                  background_color=layouts.colors['gray_background'],
-                                                  increasing_color='danger',
-                                                  decreasing_color='primary',
-                                                  font_family='Roboto', 
-                                                  font_size=14,
-                                                  font_color=layouts.colors['body_font_color'],
-                                                  dash_height=None,
-                                                  dash_width=None)
+    # Get the salient features list
+    salient_features_list = du.visualization.shap_salient_features(shap_values, features, feature_names,
+                                                                   max_display=6,
+                                                                   background_color=layouts.colors['gray_background'],
+                                                                   increasing_color='danger',
+                                                                   decreasing_color='primary',
+                                                                   font_family='Roboto', 
+                                                                   font_size=14,
+                                                                   font_color=layouts.colors['body_font_color'],
+                                                                   dash_height=None,
+                                                                   dash_width=None)
+    return salient_features_list, subject_id
 
 @app.callback(Output('ts_feature_importance_graph', 'figure'),
               [Input('instance_importance_graph', 'hoverData'),
