@@ -35,6 +35,7 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -267,6 +268,7 @@ main_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -472,6 +474,7 @@ performance_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -596,6 +599,7 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -661,6 +665,7 @@ feat_import_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),

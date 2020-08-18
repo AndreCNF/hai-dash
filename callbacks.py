@@ -18,6 +18,8 @@ from flask_caching import Cache
 from app import app
 import layouts
 
+# Set the random seed for reproducibility:
+du.set_random_seed(42)
 # Path to the directory where all the ML models are stored
 models_path = 'models/'
 metrics_path = 'metrics/individual_models/'
@@ -107,7 +109,8 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
 
 @app.callback([Output('model_store', 'data'),
                Output('model_metrics', 'data'),
-               Output('model_hyperparam', 'data')],
+               Output('model_hyperparam', 'data'),
+               Output('is_custom_store', 'data')],
               [Input('model_name_div', 'children'),
                Input('dataset_name_div', 'children')])
 def load_model_callback(model_name, dataset_name):
@@ -119,60 +122,74 @@ def load_model_callback(model_name, dataset_name):
             # Specify the model file name and class
             model_file_name = 'lstm_bidir_one_hot_encoded_delta_ts_90dayswindow_0.3809valloss_06_07_2020_04_08'
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir LSTM, embedded, time aware':
             # Specify the model file name and class
             model_file_name = 'lstm_bidir_pre_embedded_delta_ts_90dayswindow_0.3481valloss_06_07_2020_04_15'
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir LSTM, embedded':
             # Specify the model file name and class
             model_file_name = 'lstm_bidir_pre_embedded_90dayswindow_0.2490valloss_06_07_2020_03_47'
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'LSTM':
             # Specify the model file name and class
             model_file_name = 'lstm_one_hot_encoded_90dayswindow_0.4363valloss_06_07_2020_03_28'
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir RNN, embedded, time aware':
             # Specify the model file name and class
             model_file_name = 'rnn_bidir_pre_embedded_delta_ts_90dayswindow_0.3059valloss_06_07_2020_03_10'
             model_class = Models.VanillaRNN
+            is_custom = False
         elif model_name == 'RNN, embedded':
             # Specify the model file name and class
             model_file_name = 'rnn_with_embedding_90dayswindow_0.5569valloss_30_06_2020_17_04.pth'
             model_class = Models.VanillaRNN
+            is_custom = False
         elif model_name == 'MF1-LSTM':
             # Specify the model file name and class
             model_file_name = 'mf1lstm_one_hot_encoded_90dayswindow_0.6009valloss_07_07_2020_03_46'
             model_class = Models.MF1LSTM
+            is_custom = True
     elif dataset_name == 'Toy Example':
         # [TODO] Train and add each model for the toy example
         if model_name == 'Bidir LSTM, time aware':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir LSTM, embedded, time aware':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir LSTM, embedded':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'LSTM':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
+            is_custom = False
         elif model_name == 'Bidir RNN, embedded, time aware':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaRNN
+            is_custom = False
         elif model_name == 'RNN, embedded':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaRNN
+            is_custom = False
         elif model_name == 'MF1-LSTM':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.MF1LSTM
+            is_custom = True
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the metrics file
@@ -186,7 +203,8 @@ def load_model_callback(model_name, dataset_name):
                         for param in model_args])
     return (model_file_name,
             metrics,
-            hyperparams)
+            hyperparams,
+            is_custom)
 
 @app.callback(Output('model_description_list', 'children'),
               [Input('model_store', 'modified_timestamp')],
@@ -681,7 +699,7 @@ def update_det_analysis_preview(df_store, model_file_name, id_column):
     ids = random.sample(ids, 4)
     tmp_df = tmp_df[tmp_df[id_column].isin(ids)]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
-    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
+    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=is_custom)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
     return interpreter.instance_importance_plot(interpreter.test_data, 
@@ -707,7 +725,8 @@ def update_det_analysis_preview_callback(dataset_mod, model_mod, df_store, model
     return update_det_analysis_preview(df_store, model_file_name, id_column)
 
 @cache.memoize(timeout=TIMEOUT)
-def update_full_inst_import(df_store, model_file_name):
+def update_full_inst_import(df_store, model_file_name, id_column, 
+                            ts_column, label_column, is_custom):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -724,12 +743,16 @@ def update_full_inst_import(df_store, model_file_name):
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
     # Create a dataframe copy that doesn't include the feature importance columns
-    column_names = [feature for feature in df.columns
-                    if not feature.endswith('_shap')]
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    column_names = list(df.columns)
+    [column_names.remove(shap_column) for shap_column in shap_column_names]
     tmp_df = df.copy()
     tmp_df = tmp_df[column_names]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
-    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=True)
+    interpreter = ModelInterpreter(model, tmp_df, id_column_name=id_column, inst_column_name=ts_column,
+                                   label_column_name=label_column, fast_calc=True, 
+                                   padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
     return interpreter.instance_importance_plot(interpreter.test_data, 
@@ -746,11 +769,23 @@ def update_full_inst_import(df_store, model_file_name):
 
 @app.callback(Output('instance_importance_graph', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
-               Input('model_store', 'modified_timestamp')],
+               Input('model_store', 'modified_timestamp'),
+               Input('id_col_name_store', 'modified_timestamp'),
+               Input('ts_col_name_store', 'modified_timestamp'),
+               Input('label_col_name_store', 'modified_timestamp'),
+               Input('is_custom_store', 'modified_timestamp')],
               [State('dataset_store', 'data'),
-               State('model_store', 'data')])
-def update_full_inst_import_callback(dataset_mod, model_mod, df_store, model_file_name):
-    return update_full_inst_import(df_store, model_file_name)
+               State('model_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data'),
+               State('label_col_name_store', 'data'),
+               State('is_custom_store', 'data')])
+def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
+                                     label_column_mod, is_custom_mod, df_store, 
+                                     model_file_name, id_column, ts_column, label_column, 
+                                     is_custom):
+    return update_full_inst_import(df_store, model_file_name, id_column, 
+                                   ts_column, label_column, is_custom)
 
 @app.callback(Output('salient_features_list', 'children'),
               [Input('instance_importance_graph', 'hoverData'),
@@ -860,11 +895,12 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                State('model_store', 'data'),
                State('model_name_div', 'children'),
                State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data'),
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children'),
                State('curr_final_output', 'data')])
 def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model_file_name, 
-                        model_name, id_column, clicked_ts, hovered_ts, prev_output):
+                        model_name, id_column, ts_column, clicked_ts, hovered_ts, prev_output):
     global is_custom
     global clicked_thrsh
     global models_path
@@ -897,6 +933,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model
     # Only use the model-relevant features
     feature_names = [feature.split('_shap')[0] for feature in df.columns
                      if feature.endswith('_shap')]
+    # feature_names = [id_column, ts_column] + feature_names
     filtered_df = filtered_df[feature_names]
     data = torch.from_numpy(filtered_df.values)
     # Remove unwanted columns from the data

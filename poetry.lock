@@ -243,10 +243,9 @@ torch = "^1.3"
 tqdm = "^4.43.0"
 
 [package.source]
-reference = "fdd3c411db5ff3cfc5cff1f47f46e0df1a0bd175"
+reference = "91455bbd0768377d33253c5e573f538143d3fe48"
 type = "git"
 url = "https://github.com/AndreCNF/data-utils.git"
-
 [[package]]
 category = "main"
 description = "Distributed scheduler for Dask"
@@ -631,10 +630,9 @@ torch = "^1.1"
 tqdm = "^4.32"
 
 [package.source]
-reference = "1fc742955a9af248ec1a831a8b16898279b0ad76"
+reference = "122b00416b27d318e9629359966fa43a14c2eb13"
 type = "git"
 url = "https://github.com/AndreCNF/model-interpreter.git"
-
 [[package]]
 category = "main"
 description = "Modin: Make your pandas code run faster by changing one line of code."
@@ -945,7 +943,7 @@ description = "A unified approach to explain the output of any machine learning 
 name = "shap"
 optional = false
 python-versions = "*"
-version = "0.34.0"
+version = "0.35.0"
 
 [package.dependencies]
 numpy = "*"
@@ -955,15 +953,14 @@ scipy = "*"
 tqdm = ">4.25.0"
 
 [package.extras]
-all = ["matplotlib", "lime", "ipython"]
+all = ["ipython", "matplotlib", "lime"]
 others = ["lime"]
 plots = ["matplotlib", "ipython"]
 
 [package.source]
-reference = "8e2a355c60bf340704affd264107e67ca913d0c9"
+reference = "18e24569d551b9f53ea73dc44f30866cdc92623b"
 type = "git"
 url = "https://github.com/AndreCNF/shap.git"
-
 [[package]]
 category = "main"
 description = "Python 2 and 3 compatibility utilities"
