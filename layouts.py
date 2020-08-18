@@ -34,13 +34,14 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
-    dcc.Store(id='expected_value_store', storage_type='memory'),
-    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='total_length_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
     dcc.Store(id='model_metrics', storage_type='memory'),
     dcc.Store(id='model_hyperparam', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     # Current final output value
     dcc.Store(id='curr_final_output', storage_type='memory'),
     # Current selected subject
@@ -269,13 +270,14 @@ main_layout = html.Div([
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
-    dcc.Store(id='expected_value_store', storage_type='memory'),
-    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='total_length_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
     dcc.Store(id='model_metrics', storage_type='memory'),
     dcc.Store(id='model_hyperparam', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(
@@ -475,13 +477,14 @@ performance_layout = html.Div([
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
-    dcc.Store(id='expected_value_store', storage_type='memory'),
-    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='total_length_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
     dcc.Store(id='model_metrics', storage_type='memory'),
     dcc.Store(id='model_hyperparam', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     html.Div([
         dcc.Dropdown(
             id='model_dropdown',
@@ -600,13 +603,14 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
-    dcc.Store(id='expected_value_store', storage_type='memory'),
-    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='total_length_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
     dcc.Store(id='model_metrics', storage_type='memory'),
     dcc.Store(id='model_hyperparam', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     html.Div([
         dcc.Dropdown(
             id='dataset_dropdown',
@@ -666,13 +670,14 @@ feat_import_layout = html.Div([
     dcc.Store(id='ts_col_name_store', storage_type='memory'),
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
-    dcc.Store(id='expected_value_store', storage_type='memory'),
-    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='total_length_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
     dcc.Store(id='model_metrics', storage_type='memory'),
     dcc.Store(id='model_hyperparam', storage_type='memory'),
+    dcc.Store(id='is_custom_store', storage_type='memory'),
+    dcc.Store(id='expected_value_store', storage_type='memory'),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(

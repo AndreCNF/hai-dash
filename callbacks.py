@@ -75,7 +75,8 @@ def load_dataset(file_name, file_path='', file_ext='.csv',
                Output('ts_col_name_store', 'data'),
                Output('label_col_name_store', 'data'),
                Output('cols_to_remove_store', 'data'),
-               Output('reset_data_bttn', 'disabled')],
+               Output('reset_data_bttn', 'disabled'),
+               Output('total_length_store', 'data')],
               [Input('dataset_name_div', 'children'),
                Input('sample_table', 'data_timestamp'),
                Input('model_store', 'data'),
@@ -88,24 +89,36 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
         # Loading a dataset from disk
         if dataset_name == 'ALS':
             data_file_name = f'fcul_als_with_shap_for_{model_file_name}'
+            id_column = 'subject_id'
+            ts_column = 'ts'
             label_column = 'niv_label'
         elif dataset_name == 'Toy Example':
             data_file_name = f'toy_example_with_shap_for_{model_file_name}'
+            id_column = 'subject_id'
+            ts_column = 'ts'
             label_column = 'label'
         else:
             raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
         df = load_dataset(file_name=data_file_name, file_path='data/',
-                          file_ext='.csv', id_column='subject_id')
-        return df.to_dict('records'), 'subject_id', 'ts', label_column, [0, 1], True
+                          file_ext='.csv', id_column=id_column)
+        # Calculate the maximum sequence length
+        total_length = df.groupby(id_column)[ts_column].count().max()
+        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], True, total_length
     else:
         if dataset_name == 'ALS':
+            id_column = 'subject_id'
+            ts_column = 'ts'
             label_column = 'niv_label'
         elif dataset_name == 'Toy Example':
+            id_column = 'subject_id'
+            ts_column = 'ts'
             label_column = 'label'
         # Refreshing the data with a new edited sample
-        df = apply_data_changes(new_data, df_store, id_column='subject_id',
-                                ts_column='ts', label_column=label_column, model_file_name=model_file_name)
-        return df.to_dict('records'), 'subject_id', 'ts', label_column, [0, 1], False
+        df = apply_data_changes(new_data, df_store, id_column=id_column,
+                                ts_column=ts_column, label_column=label_column, model_file_name=model_file_name)
+        # Calculate the maximum sequence length
+        total_length = df.groupby(id_column)[ts_column].count().max()
+        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], False, total_length
 
 @app.callback([Output('model_store', 'data'),
                Output('model_metrics', 'data'),
@@ -673,7 +686,9 @@ def output_feat_import_page_cards(data_filter, df_store):
     return cards_list
 
 @cache.memoize(timeout=TIMEOUT)
-def update_det_analysis_preview(df_store, model_file_name, id_column):
+def update_det_analysis_preview(df_store, model_file_name, id_column, 
+                                ts_column, label_column, is_custom,
+                                total_length):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -690,8 +705,10 @@ def update_det_analysis_preview(df_store, model_file_name, id_column):
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
     # Create a dataframe copy that doesn't include the feature importance columns
-    column_names = [feature for feature in df.columns
-                    if not feature.endswith('_shap')]
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    column_names = list(df.columns)
+    [column_names.remove(shap_column) for shap_column in shap_column_names]
     tmp_df = df.copy()
     tmp_df = tmp_df[column_names]
     # Only load 4 sequences
@@ -699,7 +716,10 @@ def update_det_analysis_preview(df_store, model_file_name, id_column):
     ids = random.sample(ids, 4)
     tmp_df = tmp_df[tmp_df[id_column].isin(ids)]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
-    interpreter = ModelInterpreter(model, tmp_df, inst_column=1, is_custom=is_custom)
+    interpreter = ModelInterpreter(model, tmp_df, id_column_name=id_column, inst_column_name=ts_column,
+                                   label_column_name=label_column, fast_calc=True, 
+                                   padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7,
+                                   total_length=total_length)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
     return interpreter.instance_importance_plot(interpreter.test_data, 
@@ -716,17 +736,33 @@ def update_det_analysis_preview(df_store, model_file_name, id_column):
 
 @app.callback(Output('detailed_analysis_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
-               Input('model_store', 'modified_timestamp')],
+               Input('model_store', 'modified_timestamp'),
+               Input('id_col_name_store', 'modified_timestamp'),
+               Input('ts_col_name_store', 'modified_timestamp'),
+               Input('label_col_name_store', 'modified_timestamp'),
+               Input('is_custom_store', 'modified_timestamp')],
               [State('dataset_store', 'data'),
                State('model_store', 'data'),
-               State('id_col_name_store', 'data')])
-def update_det_analysis_preview_callback(dataset_mod, model_mod, df_store, model_file_name,
-                                         id_column):
-    return update_det_analysis_preview(df_store, model_file_name, id_column)
+               State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data'),
+               State('label_col_name_store', 'data'),
+               State('is_custom_store', 'data'),
+               State('total_length_store', 'data')])
+def update_det_analysis_preview_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
+                                         label_column_mod, is_custom_mod, df_store, 
+                                         model_file_name, id_column, ts_column, label_column, 
+                                         is_custom, total_length):
+    if id_column is None or ts_column is None or label_column is None or total_length is None:
+        # Don't update the plot if any of the required column names have not been defined yet
+        raise PreventUpdate
+    return update_det_analysis_preview(df_store, model_file_name, id_column, 
+                                       ts_column, label_column, is_custom,
+                                       total_length)
 
 @cache.memoize(timeout=TIMEOUT)
 def update_full_inst_import(df_store, model_file_name, id_column, 
-                            ts_column, label_column, is_custom):
+                            ts_column, label_column, is_custom,
+                            total_length):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(df_store)
@@ -752,7 +788,8 @@ def update_full_inst_import(df_store, model_file_name, id_column,
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
     interpreter = ModelInterpreter(model, tmp_df, id_column_name=id_column, inst_column_name=ts_column,
                                    label_column_name=label_column, fast_calc=True, 
-                                   padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7)
+                                   padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7,
+                                   total_length=total_length)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
     return interpreter.instance_importance_plot(interpreter.test_data, 
@@ -779,16 +816,18 @@ def update_full_inst_import(df_store, model_file_name, id_column,
                State('id_col_name_store', 'data'),
                State('ts_col_name_store', 'data'),
                State('label_col_name_store', 'data'),
-               State('is_custom_store', 'data')])
+               State('is_custom_store', 'data'),
+               State('total_length_store', 'data')])
 def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
                                      label_column_mod, is_custom_mod, df_store, 
                                      model_file_name, id_column, ts_column, label_column, 
-                                     is_custom):
-    if id_column is None or ts_column is None or label_column is None:
+                                     is_custom, total_length):
+    if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
     return update_full_inst_import(df_store, model_file_name, id_column, 
-                                   ts_column, label_column, is_custom)
+                                   ts_column, label_column, is_custom,
+                                   total_length)
 
 @app.callback([Output('salient_features_list', 'children'),
                Output('curr_subject', 'data')],
