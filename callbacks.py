@@ -7,6 +7,7 @@ from dash import callback_context
 import pandas as pd
 import data_utils as du
 from model_interpreter.model_interpreter import ModelInterpreter
+import plotly.graph_objs as go
 import Models
 import torch
 import numpy as np
@@ -84,7 +85,7 @@ def load_dataset(file_name, file_path='', file_ext='.csv',
               [State('sample_table', 'data'),
                State('dataset_store', 'data')])
 def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
-                          reset_clicks, new_data, df_store):
+                          reset_clicks, new_data, dataset_store):
     if callback_context.triggered[0]['prop_id'].split('.')[0] != 'sample_table':
         # Loading a dataset from disk
         if dataset_name == 'ALS':
@@ -114,7 +115,7 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
             ts_column = 'ts'
             label_column = 'label'
         # Refreshing the data with a new edited sample
-        df = apply_data_changes(new_data, df_store, id_column=id_column,
+        df = apply_data_changes(new_data, dataset_store, id_column=id_column,
                                 ts_column=ts_column, label_column=label_column, model_file_name=model_file_name)
         # Calculate the maximum sequence length
         total_length = df.groupby(id_column)[ts_column].count().max()
@@ -364,7 +365,7 @@ def update_edit_button(n_clicks):
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children'),
                State('model_store', 'data')])
-def update_sample_table(n_clicks, df_store, id_column, ts_column, label_column,
+def update_sample_table(n_clicks, dataset_store, id_column, ts_column, label_column,
                         hovered_data, clicked_data, clicked_ts, hovered_ts,
                         model_file_name):
     if n_clicks % 2 == 0 or (hovered_data is None and clicked_data is None):
@@ -376,7 +377,7 @@ def update_sample_table(n_clicks, df_store, id_column, ts_column, label_column,
         clicked_ts = int(clicked_ts)
         hovered_ts = int(hovered_ts)
         # Reconvert the dataframe to Pandas
-        df = pd.DataFrame(df_store)
+        df = pd.DataFrame(dataset_store)
         # Check whether the current sample has originated from a hover or a click event
         if (hovered_ts - clicked_ts) <= clicked_thrsh:
             # Get the selected data point's subject ID and timestamp
@@ -484,13 +485,13 @@ def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
                State('ts_col_name_store', 'data'),
                State('label_col_name_store', 'data')])
 def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
-                           df_store, dataset_name, id_column, 
+                           dataset_store, dataset_name, id_column, 
                            ts_column, label_column):
     global clicked_thrsh
     current_ts = time()
     clicked_ts = int(clicked_ts)
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
@@ -567,6 +568,456 @@ def render_auc_gauge(metrics_mod, metrics):
                                            font_size=20,
                                            output_type='plotly')
 
+def create_num_patients_card(df, id_column, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Count the number of patients
+    n_patients = df[id_column].nunique()
+    # Get the indicator plot
+    num_patients_plot = du.visualization.indicator_plot(n_patients,
+                                                        show_graph=False, 
+                                                        background_color=layouts.colors['gray_background'],
+                                                        font_color=layouts.colors['header_font_color'],
+                                                        font_size=font_size,
+                                                        output_type='dash',
+                                                        dash_height='5em')
+    # Create the card
+    num_patients_card = dbc.Card([
+        dbc.CardBody([
+                num_patients_plot,
+                html.H5('patients', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return num_patients_card
+
+def create_num_feat_card(df, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Count the number of features
+    n_features = len(feature_names)
+    # Get the indicator plot
+    num_features_plot = du.visualization.indicator_plot(n_features,
+                                                        show_graph=False, 
+                                                        background_color=layouts.colors['gray_background'],
+                                                        font_color=layouts.colors['header_font_color'],
+                                                        font_size=font_size,
+                                                        output_type='dash',
+                                                        dash_height='5em')
+    # Create the card
+    num_features_card = dbc.Card([
+        dbc.CardBody([
+                num_features_plot,
+                html.H5('features', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return num_features_card
+
+def create_num_rows_card(df, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Count the number of rows
+    n_rows = len(df)
+    # Get the indicator plot
+    num_rows_plot = du.visualization.indicator_plot(n_rows,
+                                                    show_graph=False, 
+                                                    background_color=layouts.colors['gray_background'],
+                                                    font_color=layouts.colors['header_font_color'],
+                                                    font_size=font_size,
+                                                    output_type='dash',
+                                                    dash_height='5em')
+    # Create the card
+    num_rows_card = dbc.Card([
+        dbc.CardBody([
+                num_rows_plot,
+                html.H5('rows', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return num_rows_card
+
+def create_num_data_points_card(df, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Count the number of rows
+    n_rows = len(df)
+    # Get the list of columns without the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    column_names = list(df.columns)
+    [column_names.remove(shap_column) for shap_column in shap_column_names]
+    # Count the number of columns
+    n_columns = len(column_names)
+    # Calculate the number of data points
+    n_data_points = n_rows * n_columns
+    # Get the indicator plot
+    num_data_points_plot = du.visualization.indicator_plot(n_data_points,
+                                                           show_graph=False, 
+                                                           background_color=layouts.colors['gray_background'],
+                                                           font_color=layouts.colors['header_font_color'],
+                                                           font_size=font_size,
+                                                           output_type='dash',
+                                                           dash_height='5em')
+    # Create the card
+    num_data_points_card = dbc.Card([
+        dbc.CardBody([
+                num_data_points_plot,
+                html.H5('data points', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return num_data_points_card
+
+def create_dataset_size_card(df, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Convert the dataframe's columns to more efficient types
+    df = df.convert_dtypes()
+    # Calculate the memory size of the dataframe, in MB
+    data_size = df.memory_usage(index=True, deep=True)
+    data_size = data_size.sum()
+    data_size = int(data_size / pow(10, 6))
+    # Get the indicator plot
+    data_size_plot = du.visualization.indicator_plot(data_size,
+                                                     show_graph=False, 
+                                                     background_color=layouts.colors['gray_background'],
+                                                     font_color=layouts.colors['header_font_color'],
+                                                     font_size=font_size,
+                                                     output_type='dash',
+                                                     dash_height='5em',
+                                                     suffix=' MB')
+    # Create the card
+    data_size_card = dbc.Card([
+        dbc.CardBody([
+                data_size_plot,
+                html.H5('dataset size', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return data_size_card
+
+def create_avg_seq_len_card(df, id_column, ts_column, card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Calculate the average sequence length
+    avg_seq_len = int(df.groupby(id_column)[ts_column].count().mean())
+    # Get the indicator plot
+    num_avg_seq_len_plot = du.visualization.indicator_plot(avg_seq_len,
+                                                        show_graph=False, 
+                                                        background_color=layouts.colors['gray_background'],
+                                                        font_color=layouts.colors['header_font_color'],
+                                                        font_size=font_size,
+                                                        output_type='dash',
+                                                        dash_height='5em')
+    # 
+    # Create the card
+    num_avg_seq_len_card = dbc.Card([
+        dbc.CardBody([
+                num_avg_seq_len_plot,
+                html.H5('average sequence length', style=dict(textAlign='center'))
+        ])
+    ], style=style)
+    return num_avg_seq_len_card
+
+def create_seq_len_hist_card(df, id_column, ts_column, selected_feat='All', card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Calculate the sequence lengths on this subset of data
+        seq_len = df.groupby(id_column)[ts_column].count()
+        # Configure the plot
+        data = [
+            go.Histogram(
+                x=seq_len, 
+                y=seq_len.index,
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Sequence length distribution',
+            xaxis_title_text='Sequence length',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Calculate the sequence lengths on this subset of data
+            seq_len = tmp_df.groupby(id_column)[ts_column].count()
+            # Add the histogram
+            data.append(
+                go.Histogram(
+                    x=seq_len, 
+                    y=seq_len.index,
+                    histnorm='percent',
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Sequence length distribution',
+            xaxis_title_text='Sequence length',
+            yaxis_title_text='Percent',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    seq_len_dist_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='seq_len_dist_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return seq_len_dist_card
+
+def create_time_freq_hist_card(df, id_column, ts_column, selected_feat='All', card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Calculate the time variation between samples
+        time_var = df.groupby(id_column)[ts_column].diff()
+        # Configure the plot
+        data = [
+            go.Histogram(
+                x=time_var, 
+                y=time_var.index,
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Time variation distribution',
+            xaxis_title_text='Time difference between samples',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Calculate the time variation between samples
+            time_var = tmp_df.groupby(id_column)[ts_column].diff()
+            # Add the histogram
+            data.append(
+                go.Histogram(
+                    x=time_var, 
+                    y=time_var.index,
+                    histnorm='percent',
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Time variation distribution',
+            xaxis_title_text='Time difference between samples',
+            yaxis_title_text='Percent',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    seq_len_dist_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='time_freq_dist_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return seq_len_dist_card
+
+@app.callback([Output('dataset_size_num_cards', 'children'),
+               Output('dataset_size_plot_cards', 'children')],
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('seq_len_dist_dropdown', 'value'),
+               Input('time_freq_dist_dropdown', 'value')],
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('ts_col_name_store', 'data')])
+def update_dataset_size_tab(dataset_mod, seq_len_selected_feat, time_freq_selected_feat,
+                            dataset_store, id_column, ts_column):
+    # List that will contain all the cards
+    num_cards_list = list()
+    plot_cards_list = list()
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(dataset_store)
+    # Add an indicator with the number of patients
+    num_cards_list.append(create_num_patients_card(df, id_column, card_height='10em',
+                                                   card_width=None, font_size=40))
+    # Add an indicator with the number of features
+    num_cards_list.append(create_num_feat_card(df, card_height='10em',
+                                               card_width=None, font_size=40))
+    # Add an indicator with the number of rows
+    num_cards_list.append(create_num_rows_card(df, card_height='10em',
+                                               card_width=None, font_size=40))
+    # Add an indicator with the number of data points
+    num_cards_list.append(create_num_data_points_card(df, card_height='10em',
+                                                      card_width=None, font_size=40))
+    # Add an indicator with the dataset size (in MB)
+    num_cards_list.append(create_dataset_size_card(df, card_height='10em',
+                                                   card_width=None, font_size=40))
+    # Add an indicator with the average sequence length
+    num_cards_list.append(create_avg_seq_len_card(df, id_column, ts_column, card_height='10em',
+                                                  card_width=None, font_size=40))
+    # Add an histogram with the sequence lengths info
+    plot_cards_list.append(create_seq_len_hist_card(df, id_column, ts_column,
+                                                    selected_feat=seq_len_selected_feat, 
+                                                    card_height='25em', card_width=None, 
+                                                    font_size=14))
+    # Add an histogram with the frequency of time events
+    plot_cards_list.append(create_time_freq_hist_card(df, id_column, ts_column,
+                                                      selected_feat=time_freq_selected_feat, 
+                                                      card_height='25em', card_width=None, 
+                                                      font_size=14))
+    return num_cards_list, plot_cards_list
+
+@app.callback(Output('dataset_demographics_cards', 'children'),
+              [Input('dataset_store', 'modified_timestamp')],
+              [State('dataset_store', 'data')])
+def update_dataset_demographics_tab(dataset_mod, dataset_store):
+    # List that will contain all the cards
+    cards_list = list()
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(dataset_store)
+    # Add an histogram with the age distribution (with options to see total or by gender)
+    # cards_list.append(create_age_hist_card(df))
+    # Add a bar plot with the gender balance (number of men vs number of women)
+    # cards_list.append(create_gender_bar_card(df))
+    # Add an histogram with the NIV rate (also allow filtering by age, gender)
+    # cards_list.append(create_niv_rate_card(df))
+    # Add an histogram with the label rate (also allow filtering by age, gender)
+    # cards_list.append(create_label_rate_card(df))
+    return cards_list
+
+@app.callback(Output('dataset_info_cards', 'children'),
+              [Input('dataset_store', 'modified_timestamp')],
+              [State('dataset_store', 'data')])
+def update_dataset_info_tab(dataset_mod, dataset_store):
+    # List that will contain all the cards
+    cards_list = list()
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(dataset_store)
+    # Add a description of the dataset
+    # cards_list.append(create_dataset_descr_card(df))
+    # Add a table with the types of features present
+    # cards_list.append(create_feat_types_card(df))
+    return cards_list
+
 def create_feat_import_plot(df, max_display=None,
                             xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)'):
     # Get the SHAP values into a NumPy array and the feature names
@@ -608,9 +1059,9 @@ def create_feat_import_card(df, card_title='Feature importance', max_display=Non
     return feat_import_card
 
 @cache.memoize(timeout=TIMEOUT)
-def update_feat_import_preview(model_name, df_store):
+def update_feat_import_preview(model_name, dataset_store):
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     return create_feat_import_plot(df, max_display=3,
                                    xaxis_title='Average impact on output')
 
@@ -619,8 +1070,8 @@ def update_feat_import_preview(model_name, df_store):
                Input('model_store', 'modified_timestamp')],
               [State('model_name_div', 'children'),
                State('dataset_store', 'data')])
-def update_feat_import_preview_callback(dataset_mod, model_mod, model_name, df_store):
-    return update_feat_import_preview(model_name, df_store)
+def update_feat_import_preview_callback(dataset_mod, model_mod, model_name, dataset_store):
+    return update_feat_import_preview(model_name, dataset_store)
 
 def create_fltd_feat_import_cards(df, data_filter=None):
     # List that will contain all the cards that show feature importance for
@@ -663,9 +1114,9 @@ def create_fltd_feat_import_cards(df, data_filter=None):
               [Input('feature_importance_dropdown', 'value')],
               [State('dataset_store', 'data')])
 @cache.memoize(timeout=TIMEOUT)
-def output_feat_import_page_cards(data_filter, df_store):
+def output_feat_import_page_cards(data_filter, dataset_store):
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # List that will contain all the cards that show feature importance for
     # each subset of data
     cards_list = list()
@@ -686,12 +1137,12 @@ def output_feat_import_page_cards(data_filter, df_store):
     return cards_list
 
 @cache.memoize(timeout=TIMEOUT)
-def update_det_analysis_preview(df_store, model_file_name, id_column, 
+def update_det_analysis_preview(dataset_store, model_file_name, id_column, 
                                 ts_column, label_column, is_custom,
                                 total_length):
     global models_path
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Find the model class
     if 'mf1lstm' in model_file_name:
         model_class = Models.MF1LSTM
@@ -749,23 +1200,23 @@ def update_det_analysis_preview(df_store, model_file_name, id_column,
                State('is_custom_store', 'data'),
                State('total_length_store', 'data')])
 def update_det_analysis_preview_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
-                                         label_column_mod, is_custom_mod, df_store, 
+                                         label_column_mod, is_custom_mod, dataset_store, 
                                          model_file_name, id_column, ts_column, label_column, 
                                          is_custom, total_length):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
-    return update_det_analysis_preview(df_store, model_file_name, id_column, 
+    return update_det_analysis_preview(dataset_store, model_file_name, id_column, 
                                        ts_column, label_column, is_custom,
                                        total_length)
 
 @cache.memoize(timeout=TIMEOUT)
-def update_full_inst_import(df_store, model_file_name, id_column, 
+def update_full_inst_import(dataset_store, model_file_name, id_column, 
                             ts_column, label_column, is_custom,
                             total_length):
     global models_path
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Find the model class
     if 'mf1lstm' in model_file_name:
         model_class = Models.MF1LSTM
@@ -819,13 +1270,13 @@ def update_full_inst_import(df_store, model_file_name, id_column,
                State('is_custom_store', 'data'),
                State('total_length_store', 'data')])
 def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
-                                     label_column_mod, is_custom_mod, df_store, 
+                                     label_column_mod, is_custom_mod, dataset_store, 
                                      model_file_name, id_column, ts_column, label_column, 
                                      is_custom, total_length):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
-    return update_full_inst_import(df_store, model_file_name, id_column, 
+    return update_full_inst_import(dataset_store, model_file_name, id_column, 
                                    ts_column, label_column, is_custom,
                                    total_length)
 
@@ -841,13 +1292,13 @@ def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_c
                State('hovered_ts', 'children'),
                State('curr_subject', 'data')])
 def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
-                                 model_name, df_store, id_column, 
+                                 model_name, dataset_store, id_column, 
                                  clicked_ts, hovered_ts, prev_subject):
     global clicked_thrsh
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Check whether the current sample has originated from a hover or a click event
     if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's subject ID
@@ -891,13 +1342,13 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children')])
 def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
-                          model_name, df_store, id_column, 
+                          model_name, dataset_store, id_column, 
                           exp_val, clicked_ts, hovered_ts):
     global clicked_thrsh
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Check whether the current sample has originated from a hover or a click event
     if (hovered_ts - clicked_ts) <= clicked_thrsh:
         # Get the selected data point's subject ID and timestamp
@@ -947,7 +1398,7 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children'),
                State('curr_final_output', 'data')])
-def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model_file_name, 
+def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, model_file_name, 
                         model_name, id_column, ts_column, clicked_ts, hovered_ts, prev_output):
     global is_custom
     global clicked_thrsh
@@ -955,7 +1406,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model
     clicked_ts = int(clicked_ts)
     hovered_ts = int(hovered_ts)
     # Reconvert the dataframe to Pandas
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Find the model class
     if 'mf1lstm' in model_file_name:
         model_class = Models.MF1LSTM
@@ -1010,12 +1461,12 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, df_store, model
     return output_plot, final_output
 
 # Data editing
-def apply_data_changes(new_data, df_store, id_column, ts_column, label_column, model_file_name):
+def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_column, model_file_name):
     global is_custom
     global padding_value
     global models_path
     # Load the current data as a Pandas dataframe
-    df = pd.DataFrame(df_store)
+    df = pd.DataFrame(dataset_store)
     # Load the new data as a Pandas dataframe
     new_sample_df = pd.DataFrame(new_data)
     # Optimize the column data types

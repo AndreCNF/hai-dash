@@ -611,6 +611,9 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='model_hyperparam', storage_type='memory'),
     dcc.Store(id='is_custom_store', storage_type='memory'),
     dcc.Store(id='expected_value_store', storage_type='memory'),
+    # Feature filtering dropdown placeholders
+    html.Div(children=dcc.Dropdown(id='seq_len_dist_dropdown'), hidden=True),
+    html.Div(children=dcc.Dropdown(id='time_freq_dist_dropdown'), hidden=True),
     html.Div([
         dcc.Dropdown(
             id='dataset_dropdown',
@@ -655,9 +658,68 @@ dataset_overview_layout = html.Div([
         ])
     ], color='primary', style=dict(height='5em', margin='2em')),
     dbc.Tabs([
-        dbc.Tab(html.Div('Hello world!'), label='Size'),
-        dbc.Tab(html.Div('Hello world!'), label='Demographics'),
-        dbc.Tab(html.Div('Hello world!'), label='Hospital')
+        dbc.Tab([
+            dbc.CardColumns(
+                id='dataset_size_num_cards',
+                children=[],
+                style=dict(
+                    marginTop='1em',
+                    marginLeft='2em',
+                    marginRight='2em'
+                )
+            ),
+            dcc.Loading(
+                id='loading_dataset_size_plot_cards',
+                children=[
+                    dbc.CardDeck(
+                        id='dataset_size_plot_cards',
+                        children=[], 
+                        style=dict(
+                            marginTop='1em',
+                            marginLeft='2em',
+                            marginRight='2em'
+                        )
+                    ),
+                ],
+                type='default',
+            )
+        ], label='Size'),
+        dbc.Tab(
+            dcc.Loading(
+                id='loading_dataset_demographics_cards',
+                children=[
+                    dbc.CardColumns(
+                        id='dataset_demographics_cards',
+                        children=[],
+                        style=dict(
+                            marginTop='1em',
+                            marginLeft='2em',
+                            marginRight='2em'
+                        )
+                    )
+                ],
+                type='default',
+            ), 
+            label='Demographics'
+        ),
+        dbc.Tab(
+            dcc.Loading(
+                id='loading_dataset_info_cards',
+                children=[
+                    dbc.CardColumns(
+                        id='dataset_info_cards',
+                        children=[],
+                        style=dict(
+                            marginTop='1em',
+                            marginLeft='2em',
+                            marginRight='2em'
+                        )
+                    )
+                ],
+                type='default',
+            ), 
+            label='Additional info'
+        )
     ])
 ])
 
