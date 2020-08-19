@@ -23,7 +23,10 @@ import layouts
 du.set_random_seed(42)
 # Path to the directory where all the ML models are stored
 models_path = 'models/'
-metrics_path = 'metrics/individual_models/'
+# Path to the directory where all the ML model metrics are stored
+metrics_path = 'metrics/'
+# Path to the normalization stats
+norm_stats_path = ''
 # [TODO] Set and update whether the model is from a custom type or not
 is_custom = True
 # Padding value used to pad the data sequences up to a maximum length
@@ -77,7 +80,8 @@ def load_dataset(file_name, file_path='', file_ext='.csv',
                Output('label_col_name_store', 'data'),
                Output('cols_to_remove_store', 'data'),
                Output('reset_data_bttn', 'disabled'),
-               Output('total_length_store', 'data')],
+               Output('total_length_store', 'data'),
+               Output('norm_stats_store', 'data')],
               [Input('dataset_name_div', 'children'),
                Input('sample_table', 'data_timestamp'),
                Input('model_store', 'data'),
@@ -89,37 +93,49 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
     if callback_context.triggered[0]['prop_id'].split('.')[0] != 'sample_table':
         # Loading a dataset from disk
         if dataset_name == 'ALS':
+            data_path = 'data/ALS/'
             data_file_name = f'fcul_als_with_shap_for_{model_file_name}'
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'niv_label'
+            stream_norm_stats = open(f'{data_path}norm_stats.yml', 'r')
         elif dataset_name == 'Toy Example':
+            data_path = 'data/ToyExample/'
             data_file_name = f'toy_example_with_shap_for_{model_file_name}'
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'label'
+            stream_norm_stats = open(f'{data_path}norm_stats.yml', 'r')
         else:
             raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
-        df = load_dataset(file_name=data_file_name, file_path='data/',
+        df = load_dataset(file_name=data_file_name, file_path=data_path,
                           file_ext='.csv', id_column=id_column)
         # Calculate the maximum sequence length
         total_length = df.groupby(id_column)[ts_column].count().max()
-        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], True, total_length
+        # Load the normalization statistics
+        norm_stats = yaml.load(stream_norm_stats, Loader=yaml.FullLoader)
+        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], True, total_length, norm_stats
     else:
         if dataset_name == 'ALS':
+            data_path = 'data/ALS/'
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'niv_label'
+            stream_norm_stats = open(f'{data_path}ALS/norm_stats.yml', 'r')
         elif dataset_name == 'Toy Example':
+            data_path = 'data/ToyExample/'
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'label'
+            stream_norm_stats = open(f'{data_path}ToyExample/norm_stats.yml', 'r')
         # Refreshing the data with a new edited sample
         df = apply_data_changes(new_data, dataset_store, id_column=id_column,
                                 ts_column=ts_column, label_column=label_column, model_file_name=model_file_name)
         # Calculate the maximum sequence length
         total_length = df.groupby(id_column)[ts_column].count().max()
-        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], False, total_length
+        # Load the normalization statistics
+        norm_stats = yaml.load(stream_norm_stats, Loader=yaml.FullLoader)
+        return df.to_dict('records'), id_column, ts_column, label_column, [0, 1], False, total_length, norm_stats
 
 @app.callback([Output('model_store', 'data'),
                Output('model_metrics', 'data'),
@@ -132,6 +148,7 @@ def load_model_callback(model_name, dataset_name):
     global metrics_path
     # Based on the chosen dataset and model type, set a file path to the desired model
     if dataset_name == 'ALS':
+        subdata_path = 'ALS/'
         if model_name == 'Bidir LSTM, time aware':
             # Specify the model file name and class
             model_file_name = 'lstm_bidir_one_hot_encoded_delta_ts_90dayswindow_0.3809valloss_06_07_2020_04_08'
@@ -168,6 +185,7 @@ def load_model_callback(model_name, dataset_name):
             model_class = Models.MF1LSTM
             is_custom = True
     elif dataset_name == 'Toy Example':
+        subdata_path = 'ToyExample/'
         # [TODO] Train and add each model for the toy example
         if model_name == 'Bidir LSTM, time aware':
             # Specify the model file name and class
@@ -207,10 +225,10 @@ def load_model_callback(model_name, dataset_name):
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the metrics file
-    metrics_stream = open(f'{metrics_path}{model_file_name}.yml', 'r')
+    metrics_stream = open(f'{metrics_path}{subdata_path}individual_models/{model_file_name}.yml', 'r')
     metrics = yaml.load(metrics_stream, Loader=yaml.FullLoader)
     # Register all the hyperparameters
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     model_args = inspect.getfullargspec(model.__init__).args[1:]
     hyperparams = dict([(param, str(getattr(model, param)))
@@ -986,22 +1004,461 @@ def update_dataset_size_tab(dataset_mod, seq_len_selected_feat, time_freq_select
                                                       font_size=14))
     return num_cards_list, plot_cards_list
 
+def create_age_hist_card(df, id_column, norm_stats, selected_feat='All', card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Denormalize the age
+        tmp_df = df.copy()
+        tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std'] 
+                               + norm_stats['age_at_onset']['mean'])
+        # Find patients' age
+        age = tmp_df.groupby(id_column).first().age_at_onset
+        # Configure the plot
+        data = [
+            go.Histogram(
+                x=age, 
+                y=age.index,
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Patient age distribution',
+            xaxis_title_text='Age',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Denormalize the age
+            tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std'] 
+                                   + norm_stats['age_at_onset']['mean'])
+            # Find patients' age
+            age = tmp_df.groupby(id_column).first().age_at_onset
+            # Add the histogram
+            data.append(
+                go.Histogram(
+                    x=age, 
+                    y=age.index,
+                    histnorm='percent',
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Patient age distribution',
+            xaxis_title_text='Age',
+            yaxis_title_text='Percent',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Remove the age feature
+    feature_names.remove('age_at_onset')
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    age_dist_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='age_dist_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return age_dist_card
+
+def create_gender_bar_card(df, id_column, selected_feat='All', card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Count patients' gender
+        gender_count = df.groupby(id_column).first().gender.value_counts().to_frame()
+        # Configure the plot
+        data = [
+            go.Bar(
+                x=gender_count.index, 
+                y=gender_count.gender,
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Patient gender demographics',
+            xaxis_title_text='Gender',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Count patients' gender
+            gender_count = tmp_df.groupby(id_column).first().gender.value_counts().to_frame()
+            # Add the histogram
+            data.append(
+                go.Bar(
+                    x=gender_count.index, 
+                    y=gender_count.gender,
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Patient gender demographics',
+            xaxis_title_text='Gender',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Remove the gender feature
+    feature_names.remove('gender')
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    gender_bar_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='gender_bar_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return gender_bar_card
+
+def create_label_per_sample_card(df, id_column, label_column, selected_feat='All', 
+                               card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Count label use in each sample
+        label_count = df[label_column].value_counts().to_frame()
+        # Configure the plot
+        data = [
+            go.Bar(
+                x=label_count.index, 
+                y=label_count[label_column],
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Label activation / sample',
+            xaxis_title_text='Label',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Count label use in each sample
+            label_count = tmp_df[label_column].value_counts().to_frame()
+            # Add the histogram
+            data.append(
+                go.Bar(
+                    x=label_count.index, 
+                    y=label_count[label_column],
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Label activation / sample',
+            xaxis_title_text='Label',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    label_per_sample_bar_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='label_per_sample_bar_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return label_per_sample_bar_card
+
+def create_label_per_patient_card(df, id_column, label_column, selected_feat='All', 
+                               card_height=None, card_width=None, font_size=20):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if selected_feat == 'All' or selected_feat == None:
+        # Count label use in each patient
+        label_count = df.groupby(id_column)[label_column].max().value_counts().to_frame()
+        # Configure the plot
+        data = [
+            go.Bar(
+                x=label_count.index, 
+                y=label_count[label_column],
+                name='All'
+            )
+        ]
+        layout = go.Layout(
+            title_text='Label activation / patient',
+            xaxis_title_text='Label',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    else:
+        # Find the unique values of a column
+        unique_vals = df[selected_feat].unique()
+        # Create an histogram for each segment of data that matches each unique value
+        data = list()
+        for val in unique_vals:
+            # Get the data that has the current value
+            tmp_df = df[df[selected_feat] == val]
+            # Count label use in each patient
+            label_count = tmp_df.groupby(id_column)[label_column].max().value_counts().to_frame()
+            # Add the histogram
+            data.append(
+                go.Bar(
+                    x=label_count.index, 
+                    y=label_count[label_column],
+                    name=f'{selected_feat} = {val}'
+                )
+            )
+        layout = go.Layout(
+            title_text='Label activation / patient',
+            xaxis_title_text='Label',
+            yaxis_title_text='Count',
+            paper_bgcolor=layouts.colors['gray_background'],
+            plot_bgcolor=layouts.colors['gray_background'],
+            margin=dict(l=0, r=0, t=50, b=0, pad=0),
+            font=dict(
+                family='Roboto',
+                size=font_size,
+                color=layouts.colors['header_font_color']
+            )
+        )
+    # Get the histogram plot
+    fig = go.Figure(data, layout)
+    # Get the list of columns without the identifier and the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    feature_names = [feature.split('_shap')[0] for feature in shap_column_names]
+    # Create the feature dropdown filter
+    options = list()
+    options.append(dict(label='All', value='All'))
+    [options.append(dict(label=feat, value=feat)) for feat in feature_names]
+    # Create the card
+    label_per_patient_bar_card = dbc.Card([
+        dbc.CardBody([
+            dcc.Dropdown(
+                id='label_per_patient_bar_dropdown',
+                options=options,
+                placeholder='Choose a column to filter on',
+                searchable=True,
+                persistence=True,
+                persistence_type='session',
+                style=dict(
+                    color=layouts.colors['gray_background'],
+                    backgroundColor=layouts.colors['gray_background'],
+                    textColor='white',
+                    fontColor='white'
+                )
+            ),
+            dcc.Graph(
+                figure=fig,
+                config=dict(
+                    displayModeBar=False
+                ),
+                style=dict(
+                    height='20em'
+                )
+            )
+        ])
+    ], style=style)
+    return label_per_patient_bar_card
+
 @app.callback(Output('dataset_demographics_cards', 'children'),
-              [Input('dataset_store', 'modified_timestamp')],
-              [State('dataset_store', 'data')])
-def update_dataset_demographics_tab(dataset_mod, dataset_store):
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('age_dist_dropdown', 'value'),
+               Input('gender_bar_dropdown', 'value'),
+               Input('label_per_sample_bar_dropdown', 'value'),
+               Input('label_per_patient_bar_dropdown', 'value')],
+              [State('dataset_store', 'data'),
+               State('id_col_name_store', 'data'),
+               State('label_col_name_store', 'data'),
+               State('norm_stats_store', 'data')])
+def update_dataset_demographics_tab(dataset_mod, age_selected_feat, gender_selected_feat,
+                                    label_per_sample_selected_feat, label_per_patient_selected_feat,
+                                    dataset_store, id_column, label_column, norm_stats):
     # List that will contain all the cards
     cards_list = list()
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
-    # Add an histogram with the age distribution (with options to see total or by gender)
-    # cards_list.append(create_age_hist_card(df))
-    # Add a bar plot with the gender balance (number of men vs number of women)
-    # cards_list.append(create_gender_bar_card(df))
-    # Add an histogram with the NIV rate (also allow filtering by age, gender)
-    # cards_list.append(create_niv_rate_card(df))
-    # Add an histogram with the label rate (also allow filtering by age, gender)
-    # cards_list.append(create_label_rate_card(df))
+    # Add an histogram with the age distribution
+    cards_list.append(create_age_hist_card(df, id_column, norm_stats,
+                                           selected_feat=age_selected_feat, 
+                                           card_height='25em', card_width=None, 
+                                           font_size=14))
+    # Add a bar plot with the gender balance
+    cards_list.append(create_gender_bar_card(df, id_column,
+                                             selected_feat=gender_selected_feat, 
+                                             card_height='25em', card_width=None, 
+                                             font_size=14))
+    # Add a bar plot with the label activations per sample
+    cards_list.append(create_label_per_sample_card(df, id_column, label_column,
+                                                   selected_feat=label_per_sample_selected_feat, 
+                                                   card_height='25em', card_width=None, 
+                                                   font_size=14))
+    # Add a bar plot with the label activations per patient
+    cards_list.append(create_label_per_patient_card(df, id_column, label_column,
+                                                    selected_feat=label_per_patient_selected_feat, 
+                                                    card_height='25em', card_width=None, 
+                                                    font_size=14))
     return cards_list
 
 @app.callback(Output('dataset_info_cards', 'children'),

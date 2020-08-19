@@ -35,6 +35,7 @@ detail_analysis_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='total_length_store', storage_type='memory'),
+    dcc.Store(id='norm_stats_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -271,6 +272,7 @@ main_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='total_length_store', storage_type='memory'),
+    dcc.Store(id='norm_stats_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -478,6 +480,7 @@ performance_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='total_length_store', storage_type='memory'),
+    dcc.Store(id='norm_stats_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -604,6 +607,7 @@ dataset_overview_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='total_length_store', storage_type='memory'),
+    dcc.Store(id='norm_stats_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
@@ -614,6 +618,10 @@ dataset_overview_layout = html.Div([
     # Feature filtering dropdown placeholders
     html.Div(children=dcc.Dropdown(id='seq_len_dist_dropdown'), hidden=True),
     html.Div(children=dcc.Dropdown(id='time_freq_dist_dropdown'), hidden=True),
+    html.Div(children=dcc.Dropdown(id='age_dist_dropdown'), hidden=True),
+    html.Div(children=dcc.Dropdown(id='gender_bar_dropdown'), hidden=True),
+    html.Div(children=dcc.Dropdown(id='label_per_sample_bar_dropdown'), hidden=True),
+    html.Div(children=dcc.Dropdown(id='label_per_patient_bar_dropdown'), hidden=True),
     html.Div([
         dcc.Dropdown(
             id='dataset_dropdown',
@@ -688,7 +696,7 @@ dataset_overview_layout = html.Div([
             dcc.Loading(
                 id='loading_dataset_demographics_cards',
                 children=[
-                    dbc.CardColumns(
+                    dbc.CardDeck(
                         id='dataset_demographics_cards',
                         children=[],
                         style=dict(
@@ -733,6 +741,7 @@ feat_import_layout = html.Div([
     dcc.Store(id='label_col_name_store', storage_type='memory'),
     dcc.Store(id='cols_to_remove_store', storage_type='memory'),
     dcc.Store(id='total_length_store', storage_type='memory'),
+    dcc.Store(id='norm_stats_store', storage_type='memory'),
     # Chosen machine learning model
     html.Div(id='model_name_div', children='LSTM', hidden=True),
     dcc.Store(id='model_store', storage_type='memory'),
