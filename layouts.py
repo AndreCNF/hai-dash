@@ -826,15 +826,7 @@ feat_import_layout = html.Div([
             id='feature_importance_dropdown',
             # [TODO] Add options dynamically, according to the dataset's categorical features
             options=[
-                dict(label='All', value='All'),
-                dict(label='Var0', value='Var0'),
-                dict(label='Var4_a', value='Var4_a'),
-                dict(label='Var4_b', value='Var4_b'),
-                dict(label='Var4_c', value='Var4_c'),
-                # dict(label='Sex', value='Sex'),
-                # dict(label='Age', value='Age'),
-                # dict(label='Diagnostic', value='Diagnostic'),
-                # dict(label='Treatment', value='Treatment')
+                dict(label='All', value='All')
             ],
             placeholder='Choose how to filter the data',
             value='All',
