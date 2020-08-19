@@ -121,13 +121,13 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'niv_label'
-            stream_norm_stats = open(f'{data_path}ALS/norm_stats.yml', 'r')
+            stream_norm_stats = open(f'{data_path}norm_stats.yml', 'r')
         elif dataset_name == 'Toy Example':
             data_path = 'data/ToyExample/'
             id_column = 'subject_id'
             ts_column = 'ts'
             label_column = 'label'
-            stream_norm_stats = open(f'{data_path}ToyExample/norm_stats.yml', 'r')
+            stream_norm_stats = open(f'{data_path}norm_stats.yml', 'r')
         # Refreshing the data with a new edited sample
         df = apply_data_changes(new_data, dataset_store, id_column=id_column,
                                 ts_column=ts_column, label_column=label_column, 
@@ -2134,10 +2134,8 @@ def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_colu
         # Guarantee that the model is in evaluation mode, so as to deactivate dropout
         model.eval()
         # Recalculate the SHAP values
-        interpreter = ModelInterpreter(model, model_type='multivariate_rnn',
-                                       id_column=0, inst_column=1, 
-                                       fast_calc=True, SHAP_bkgnd_samples=10000,
-                                       random_seed=du.random_seed, 
+        interpreter = ModelInterpreter(model, df, id_column_name=id_column, inst_column_name=ts_column,
+                                       label_column_name=label_column, fast_calc=True, 
                                        padding_value=padding_value, is_custom=is_custom,
                                        seq_len_dict=seq_len_dict,
                                        feat_names=feature_names)
