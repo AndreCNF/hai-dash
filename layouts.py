@@ -81,7 +81,7 @@ detail_analysis_layout = html.Div([
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
-                    dict(label='MF1-LSTM', value='MF2-LSTM')
+                    dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,
@@ -310,7 +310,7 @@ main_layout = html.Div([
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
-                    dict(label='MF1-LSTM', value='MF2-LSTM')
+                    dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,
@@ -405,7 +405,8 @@ main_layout = html.Div([
                         ],
                         style=dict(
                             height='2em',
-                            marginTop='1em'
+                            marginTop='1em',
+                            marginBottom='2.5em'
                         )
                     ),
                     dbc.Button('Expand', className='mt-auto', href='/performance'),
@@ -414,6 +415,13 @@ main_layout = html.Div([
         dbc.Card([
             dbc.CardBody([
                     html.H5('Dataset overview', className='card-title'),
+                    dcc.Loading(
+                        id='loading_dataset_preview',
+                        children=[
+                            html.Div(id='dataset_preview'),
+                        ],
+                        type='default',
+                    ),
                     dbc.Button('Expand', className='mt-auto', href='/dataset-overview'),
             ])
         ], style=dict(height='20em')),
@@ -498,7 +506,7 @@ performance_layout = html.Div([
                 dict(label='LSTM', value='LSTM'),
                 dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                 dict(label='RNN, embedded', value='RNN, embedded'),
-                dict(label='MF1-LSTM', value='MF2-LSTM')
+                dict(label='MF1-LSTM', value='MF1-LSTM')
             ],
             placeholder='Choose a model',
             searchable=False,
@@ -596,8 +604,6 @@ performance_layout = html.Div([
     )
 ])
 
-
-# [TODO]
 dataset_overview_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='ALS', hidden=True),
@@ -714,7 +720,7 @@ dataset_overview_layout = html.Div([
             dcc.Loading(
                 id='loading_dataset_info_cards',
                 children=[
-                    dbc.CardColumns(
+                    dbc.CardDeck(
                         id='dataset_info_cards',
                         children=[],
                         style=dict(
@@ -731,7 +737,6 @@ dataset_overview_layout = html.Div([
     ])
 ])
 
-# [TODO]
 feat_import_layout = html.Div([
     # Chosen dataset
     html.Div(id='dataset_name_div', children='ALS', hidden=True),
@@ -779,7 +784,7 @@ feat_import_layout = html.Div([
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
-                    dict(label='MF1-LSTM', value='MF2-LSTM')
+                    dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
                 searchable=False,

@@ -130,7 +130,9 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
             stream_norm_stats = open(f'{data_path}ToyExample/norm_stats.yml', 'r')
         # Refreshing the data with a new edited sample
         df = apply_data_changes(new_data, dataset_store, id_column=id_column,
-                                ts_column=ts_column, label_column=label_column, model_file_name=model_file_name)
+                                ts_column=ts_column, label_column=label_column, 
+                                model_file_name=model_file_name,
+                                dataset_name=dataset_name)
         # Calculate the maximum sequence length
         total_length = df.groupby(id_column)[ts_column].count().max()
         # Load the normalization statistics
@@ -585,6 +587,57 @@ def render_auc_gauge(metrics_mod, metrics):
                                            font_color=layouts.colors['header_font_color'],
                                            font_size=20,
                                            output_type='plotly')
+
+@app.callback(Output('dataset_preview', 'children'),
+              [Input('dataset_store', 'modified_timestamp'),
+               Input('norm_stats_store', 'modified_timestamp'),
+               Input('label_col_name_store', 'modified_timestamp')],
+              [State('dataset_store', 'data'),
+               State('norm_stats_store', 'data'),
+               State('label_col_name_store', 'data')])
+def update_dataset_preview(dataset_mod, norm_stats_mod, label_column_mod, 
+                           dataset_store, norm_stats, label_column):
+    if norm_stats is None or label_column is None:
+        # Don't update the plot if any of the required inputs have not been defined yet
+        raise PreventUpdate
+    # Reconvert the dataframe to Pandas
+    df = pd.DataFrame(dataset_store)
+    # Get the average age
+    avg_age = int(norm_stats['age_at_onset']['mean'])
+    # Calculate the percentage of patients with gender 0
+    gender_counts = df.gender.value_counts()
+    gender_0_percent = (gender_counts[0] / (gender_counts.sum())) * 100
+    gender_0_percent = f'{gender_0_percent:.2f}%'
+    # Calculate the label activations per sample percentage
+    label_count = df[label_column].value_counts()
+    label_act = (label_count[1] / (label_count.sum())) * 100
+    label_act = f'{label_act:.2f}%'
+    # Create the rows
+    rows = [
+        dbc.Row([
+            dbc.Col(html.Div('Average age'), width=6),
+            dbc.Col(html.Div(avg_age), width=6)
+        ], style=dict(
+            height='2em',
+            marginTop='1em'
+        )),
+        dbc.Row([
+            dbc.Col(html.Div('Patients of gender 0'), width=6),
+            dbc.Col(html.Div(gender_0_percent), width=6)
+        ], style=dict(
+            height='2em',
+            marginTop='1em'
+        )),
+        dbc.Row([
+            dbc.Col(html.Div('Label activations per sample'), width=6),
+            dbc.Col(html.Div(label_act), width=6)
+        ], style=dict(
+            height='2em',
+            marginTop='1em',
+            marginBottom='2.5em'
+        )),
+    ]
+    return rows
 
 def create_num_patients_card(df, id_column, card_height=None, card_width=None, font_size=20):
     style = dict()
@@ -1219,7 +1272,7 @@ def create_gender_bar_card(df, id_column, selected_feat='All', card_height=None,
     return gender_bar_card
 
 def create_label_per_sample_card(df, id_column, label_column, selected_feat='All', 
-                               card_height=None, card_width=None, font_size=20):
+                                 card_height=None, card_width=None, font_size=20):
     style = dict()
     if card_height is not None:
         style['height'] = card_height
@@ -1321,7 +1374,7 @@ def create_label_per_sample_card(df, id_column, label_column, selected_feat='All
     return label_per_sample_bar_card
 
 def create_label_per_patient_card(df, id_column, label_column, selected_feat='All', 
-                               card_height=None, card_width=None, font_size=20):
+                                  card_height=None, card_width=None, font_size=20):
     style = dict()
     if card_height is not None:
         style['height'] = card_height
@@ -1461,18 +1514,92 @@ def update_dataset_demographics_tab(dataset_mod, age_selected_feat, gender_selec
                                                     font_size=14))
     return cards_list
 
+def create_dataset_descr_card(df, dataset_name, card_height=None, card_width=None):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    if dataset_name == 'ALS':
+        description =  '''Portuguese ALS dataset, a collection of data from Amyotrophic Lateral Sclerosis (ALS) 
+                          patients, collected between 1995 and 2018 in the Translational Clinic Physiology Unit, 
+                          Hospital de Santa Maria, IMM, Lisbon. It has a rich-ness of information, consisting of 
+                          healthcare multivariate time series, with a selected subset of features that was 
+                          handpicked by clinicians. The dataset containes a variety of feature types, both static 
+                          and temporal, categorical and numerical, and from multiple topics, ranging from 
+                          demographics and family history to genetic and respiratory data. A particularly 
+                          relevant column is the date of Non-Invasive Ventilation (NIV), as it is the source from 
+                          which we extract the label.'''
+    elif dataset_name == 'Toy Example':
+        description =  '''Just a toy example'''
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
+    # Create the card
+    dataset_descr_card = dbc.Card([
+        dbc.CardBody([
+            html.H5('Dataset description'),
+            html.P(description)
+        ])
+    ], style=style)
+    return dataset_descr_card
+
+def create_feat_types_card(df, card_height=None, card_width=None):
+    style = dict()
+    if card_height is not None:
+        style['height'] = card_height
+    if card_width is not None:
+        style['width'] = card_width
+    # Create a dataframe copy that doesn't include the feature importance columns
+    shap_column_names = [feature for feature in df.columns
+                         if feature.endswith('_shap')]
+    column_names = list(df.columns)
+    [column_names.remove(shap_column) for shap_column in shap_column_names]
+    tmp_df = df.copy()
+    tmp_df = tmp_df[column_names]
+    # Create a dictionary for the number of columns per data type
+    dtypes_count = dict()
+    # Add 2 integer types due to the identifier columns
+    dtypes_count['Integer'] = 2
+    # Find all the boolean features
+    boolean_feat = du.search_explore.list_boolean_columns(tmp_df)
+    dtypes_count['Boolean'] = len(boolean_feat)
+    # Add the count of float features, if there are any
+    orig_dtypes_count = tmp_df.dtypes.value_counts()
+    orig_dtypes_count.index = orig_dtypes_count.index.astype('str')
+    if 'float64' in orig_dtypes_count.index:
+        dtypes_count['Float'] = orig_dtypes_count['float64']
+    # Create table rows for each data type
+    rows = list()
+    for dtype, count in dtypes_count.items():
+        rows.append(dbc.Row([
+            dbc.Col(html.Div(dtype), width=6),
+            dbc.Col(html.Div(count), width=6),
+        ],
+            style=dict(
+                height='2em',
+                marginTop='1em'
+            )
+        ))
+    # Create the card
+    dtypes_card = dbc.Card([
+        dbc.CardBody([html.H5('Column data types count')] + rows)
+    ], style=style)
+    return dtypes_card
+
 @app.callback(Output('dataset_info_cards', 'children'),
               [Input('dataset_store', 'modified_timestamp')],
-              [State('dataset_store', 'data')])
-def update_dataset_info_tab(dataset_mod, dataset_store):
+              [State('dataset_store', 'data'),
+               State('dataset_name_div', 'children')])
+def update_dataset_info_tab(dataset_mod, dataset_store, dataset_name):
     # List that will contain all the cards
     cards_list = list()
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
     # Add a description of the dataset
-    # cards_list.append(create_dataset_descr_card(df))
+    cards_list.append(create_dataset_descr_card(df, dataset_name, card_height=None, 
+                                                card_width=None))
     # Add a table with the types of features present
-    # cards_list.append(create_feat_types_card(df))
+    cards_list.append(create_feat_types_card(df, card_height=None, card_width=None))
     return cards_list
 
 def create_feat_import_plot(df, max_display=None,
@@ -1596,7 +1723,7 @@ def output_feat_import_page_cards(data_filter, dataset_store):
 @cache.memoize(timeout=TIMEOUT)
 def update_det_analysis_preview(dataset_store, model_file_name, id_column, 
                                 ts_column, label_column, is_custom,
-                                total_length):
+                                total_length, dataset_name):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
@@ -1607,8 +1734,15 @@ def update_det_analysis_preview(dataset_store, model_file_name, id_column,
         model_class = Models.VanillaLSTM
     elif 'rnn' in model_file_name:
         model_class = Models.VanillaRNN
+    # Set the subpath to the models according to the dataset
+    if dataset_name == 'ALS':
+        subdata_path = 'ALS/'
+    elif dataset_name == 'Toy Example':
+        subdata_path = 'ToyExample/'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -1648,29 +1782,31 @@ def update_det_analysis_preview(dataset_store, model_file_name, id_column,
                Input('id_col_name_store', 'modified_timestamp'),
                Input('ts_col_name_store', 'modified_timestamp'),
                Input('label_col_name_store', 'modified_timestamp'),
-               Input('is_custom_store', 'modified_timestamp')],
+               Input('is_custom_store', 'modified_timestamp'),
+               Input('total_length_store', 'modified_timestamp')],
               [State('dataset_store', 'data'),
                State('model_store', 'data'),
                State('id_col_name_store', 'data'),
                State('ts_col_name_store', 'data'),
                State('label_col_name_store', 'data'),
                State('is_custom_store', 'data'),
-               State('total_length_store', 'data')])
+               State('total_length_store', 'data'),
+               State('dataset_name_div', 'children')])
 def update_det_analysis_preview_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
-                                         label_column_mod, is_custom_mod, dataset_store, 
-                                         model_file_name, id_column, ts_column, label_column, 
-                                         is_custom, total_length):
+                                         label_column_mod, is_custom_mod, total_length_mod, 
+                                         dataset_store, model_file_name, id_column, ts_column, 
+                                         label_column, is_custom, total_length, dataset_name):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
     return update_det_analysis_preview(dataset_store, model_file_name, id_column, 
                                        ts_column, label_column, is_custom,
-                                       total_length)
+                                       total_length, dataset_name)
 
 @cache.memoize(timeout=TIMEOUT)
 def update_full_inst_import(dataset_store, model_file_name, id_column, 
                             ts_column, label_column, is_custom,
-                            total_length):
+                            total_length, dataset_name):
     global models_path
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
@@ -1681,8 +1817,15 @@ def update_full_inst_import(dataset_store, model_file_name, id_column,
         model_class = Models.VanillaLSTM
     elif 'rnn' in model_file_name:
         model_class = Models.VanillaRNN
+    # Set the subpath to the models according to the dataset
+    if dataset_name == 'ALS':
+        subdata_path = 'ALS/'
+    elif dataset_name == 'Toy Example':
+        subdata_path = 'ToyExample/'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -1725,17 +1868,18 @@ def update_full_inst_import(dataset_store, model_file_name, id_column,
                State('ts_col_name_store', 'data'),
                State('label_col_name_store', 'data'),
                State('is_custom_store', 'data'),
-               State('total_length_store', 'data')])
+               State('total_length_store', 'data'),
+               State('dataset_name_div', 'children')])
 def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
                                      label_column_mod, is_custom_mod, dataset_store, 
                                      model_file_name, id_column, ts_column, label_column, 
-                                     is_custom, total_length):
+                                     is_custom, total_length, dataset_name):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
     return update_full_inst_import(dataset_store, model_file_name, id_column, 
                                    ts_column, label_column, is_custom,
-                                   total_length)
+                                   total_length, dataset_name)
 
 @app.callback([Output('salient_features_list', 'children'),
                Output('curr_subject', 'data')],
@@ -1854,9 +1998,11 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                State('ts_col_name_store', 'data'),
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children'),
-               State('curr_final_output', 'data')])
+               State('curr_final_output', 'data'),
+               State('dataset_name_div', 'children')])
 def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, model_file_name, 
-                        model_name, id_column, ts_column, clicked_ts, hovered_ts, prev_output):
+                        model_name, id_column, ts_column, clicked_ts, hovered_ts, prev_output,
+                        dataset_name):
     global is_custom
     global clicked_thrsh
     global models_path
@@ -1871,8 +2017,15 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, 
         model_class = Models.VanillaLSTM
     elif 'rnn' in model_file_name:
         model_class = Models.VanillaRNN
+    # Set the subpath to the models according to the dataset
+    if dataset_name == 'ALS':
+        subdata_path = 'ALS/'
+    elif dataset_name == 'Toy Example':
+        subdata_path = 'ToyExample/'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -1918,7 +2071,8 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, 
     return output_plot, final_output
 
 # Data editing
-def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_column, model_file_name):
+def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_column, 
+                       model_file_name, dataset_name):
     global is_custom
     global padding_value
     global models_path
@@ -1967,8 +2121,15 @@ def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_colu
             model_class = Models.VanillaLSTM
         elif 'rnn' in model_file_name:
             model_class = Models.VanillaRNN
+        # Set the subpath to the models according to the dataset
+        if dataset_name == 'ALS':
+            subdata_path = 'ALS/'
+        elif dataset_name == 'Toy Example':
+            subdata_path = 'ToyExample/'
+        else:
+            raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
         # Load the model
-        model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+        model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                                  ModelClass=model_class)
         # Guarantee that the model is in evaluation mode, so as to deactivate dropout
         model.eval()
@@ -1995,8 +2156,9 @@ def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_colu
 @app.callback(Output('expected_value_store', 'data'),
               [Input('dataset_store', 'modified_timestamp'),
                Input('model_store', 'modified_timestamp')],
-              [State('model_store', 'data')])
-def calc_exp_val(dataset_mod, model_mod, model_file_name):
+              [State('model_store', 'data'),
+               State('dataset_name_div', 'children')])
+def calc_exp_val(dataset_mod, model_mod, model_file_name, dataset_name):
     global models_path
     # Find the model class
     if 'mf1lstm' in model_file_name:
@@ -2005,8 +2167,15 @@ def calc_exp_val(dataset_mod, model_mod, model_file_name):
         model_class = Models.VanillaLSTM
     elif 'rnn' in model_file_name:
         model_class = Models.VanillaRNN
+    # Set the subpath to the models according to the dataset
+    if dataset_name == 'ALS':
+        subdata_path = 'ALS/'
+    elif dataset_name == 'Toy Example':
+        subdata_path = 'ToyExample/'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
                                              ModelClass=model_class)
     # Put the model in evaluation mode to deactivate dropout
     model.eval()
