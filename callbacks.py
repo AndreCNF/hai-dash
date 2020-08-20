@@ -465,7 +465,13 @@ def change_dataset_header(dataset):
               [Input('dataset_name_div', 'children'),
                Input('model_name_div', 'children')])
 def change_title(dataset_name, model_name):
-    return f'{dataset_name} mortality prediction with {model_name} model'
+    if dataset_name == 'ALS':
+        label_name = 'NIV'
+    elif dataset_name == 'Toy Example':
+        label_name == 'mortality'
+    else:
+        raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
+    return f'{dataset_name} {label_name} prediction with {model_name} model'
 
 # Detailed analysis strings
 @app.callback(Output('clicked_ts', 'children'),
@@ -595,7 +601,7 @@ def update_performance_preview(metrics_mod, metrics):
                                                font_color=layouts.colors['body_font_color'],
                                                suffix=None, output_type='plotly')
     # F1 plot
-    f1_plot = du.visualization.indicator_plot(auc, min_val=0, max_val=1,
+    f1_plot = du.visualization.indicator_plot(f1, min_val=0, max_val=1,
                                               type='bullet', 
                                               higher_is_better=True,
                                               background_color=layouts.colors['gray_background'],

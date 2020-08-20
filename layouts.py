@@ -348,7 +348,7 @@ main_layout = html.Div([
             dbc.CardBody([
                     html.H5('Performance', className='card-title'),
                     dbc.Row([
-                        dbc.Col(html.Div('Accuracy'), width=6),
+                        dbc.Col(html.Div('Test Accuracy'), width=6),
                         dbc.Col(
                             dcc.Graph(
                                 id='test_accuracy_indicator_preview',
@@ -369,7 +369,7 @@ main_layout = html.Div([
                         )
                     ),
                     dbc.Row([
-                        dbc.Col(html.Div('AUC'), width=6),
+                        dbc.Col(html.Div('Test AUC'), width=6),
                         dbc.Col(
                             dcc.Graph(
                                 id='test_auc_indicator_preview',
@@ -390,7 +390,7 @@ main_layout = html.Div([
                         )
                     ),
                     dbc.Row([
-                        dbc.Col(html.Div('F1'), width=6),
+                        dbc.Col(html.Div('Test F1'), width=6),
                         dbc.Col(
                             dcc.Graph(
                                 id='test_f1_indicator_preview',
