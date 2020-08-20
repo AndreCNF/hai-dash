@@ -151,14 +151,14 @@ def load_model_callback(model_name, dataset_name):
     # Based on the chosen dataset and model type, set a file path to the desired model
     if dataset_name == 'ALS':
         subdata_path = 'ALS/'
-        if model_name == 'Bidir LSTM, time aware':
-            # Specify the model file name and class
-            model_file_name = 'lstm_bidir_one_hot_encoded_delta_ts_90dayswindow_0.3809valloss_06_07_2020_04_08'
-            model_class = Models.VanillaLSTM
-            is_custom = False
-        elif model_name == 'Bidir LSTM, embedded, time aware':
+        if model_name == 'Bidir LSTM, embedded, time aware':
             # Specify the model file name and class
             model_file_name = 'lstm_bidir_pre_embedded_delta_ts_90dayswindow_0.3481valloss_06_07_2020_04_15'
+            model_class = Models.VanillaLSTM
+            is_custom = False
+        elif model_name == 'Bidir LSTM, time aware':
+            # Specify the model file name and class
+            model_file_name = 'lstm_bidir_one_hot_encoded_delta_ts_90dayswindow_0.3809valloss_06_07_2020_04_08'
             model_class = Models.VanillaLSTM
             is_custom = False
         elif model_name == 'Bidir LSTM, embedded':
@@ -181,6 +181,11 @@ def load_model_callback(model_name, dataset_name):
             model_file_name = 'rnn_with_embedding_90dayswindow_0.5569valloss_30_06_2020_17_04.pth'
             model_class = Models.VanillaRNN
             is_custom = False
+        elif model_name == 'RNN':
+            # Specify the model file name and class
+            model_file_name = 'rnn_one_hot_encoded_90dayswindow_0.5497valloss_30_06_2020_18_25.pth'
+            model_class = Models.VanillaRNN
+            is_custom = False
         elif model_name == 'MF1-LSTM':
             # Specify the model file name and class
             model_file_name = 'mf1lstm_one_hot_encoded_90dayswindow_0.6009valloss_07_07_2020_03_46'
@@ -189,12 +194,12 @@ def load_model_callback(model_name, dataset_name):
     elif dataset_name == 'Toy Example':
         subdata_path = 'ToyExample/'
         # [TODO] Train and add each model for the toy example
-        if model_name == 'Bidir LSTM, time aware':
+        if model_name == 'Bidir LSTM, embedded, time aware':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
             is_custom = False
-        elif model_name == 'Bidir LSTM, embedded, time aware':
+        elif model_name == 'Bidir LSTM, time aware':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaLSTM
@@ -215,6 +220,11 @@ def load_model_callback(model_name, dataset_name):
             model_class = Models.VanillaRNN
             is_custom = False
         elif model_name == 'RNN, embedded':
+            # Specify the model file name and class
+            model_file_name = ''
+            model_class = Models.VanillaRNN
+            is_custom = False
+        elif model_name == 'RNN':
             # Specify the model file name and class
             model_file_name = ''
             model_class = Models.VanillaRNN
@@ -1619,7 +1629,8 @@ def update_dataset_info_tab(dataset_mod, dataset_store, dataset_name):
     return cards_list
 
 def create_feat_import_plot(df, max_display=None,
-                            xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)'):
+                            xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)',
+                            margin_left=0):
     # Get the SHAP values into a NumPy array and the feature names
     shap_column_names = [feature for feature in df.columns
                          if feature.endswith('_shap')]
@@ -1633,12 +1644,13 @@ def create_feat_import_plot(df, max_display=None,
                                                 output_type='plotly',
                                                 font_family='Roboto', font_size=14,
                                                 font_color=layouts.colors['body_font_color'],
-                                                xaxis_title=xaxis_title)
+                                                xaxis_title=xaxis_title,
+                                                margin_left=margin_left)
     return figure
 
 def create_feat_import_card(df, card_title='Feature importance', max_display=None,
                             xaxis_title='mean(|SHAP value|) (average impact on model output magnitude)',
-                            card_height=None, card_width=None):
+                            card_height=None, card_width=None, margin_left=0):
     style = dict()
     if card_height is not None:
         style['height'] = card_height
@@ -1649,7 +1661,8 @@ def create_feat_import_card(df, card_title='Feature importance', max_display=Non
                 html.H5(card_title, className='card-title'),
                 dcc.Graph(figure=create_feat_import_plot(df,
                                                          max_display=max_display,
-                                                         xaxis_title=xaxis_title),
+                                                         xaxis_title=xaxis_title,
+                                                         margin_left=margin_left),
                           config=dict(
                             displayModeBar=False
                           )
@@ -1663,7 +1676,8 @@ def update_feat_import_preview(model_name, dataset_store):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
     return create_feat_import_plot(df, max_display=3,
-                                   xaxis_title='Average impact on output')
+                                   xaxis_title='Average impact on output',
+                                   margin_left=0)
 
 @app.callback(Output('feature_importance_preview', 'figure'),
               [Input('dataset_store', 'modified_timestamp'),
@@ -1682,7 +1696,8 @@ def create_fltd_feat_import_cards(df, data_filter=None):
         cards_list.append(create_feat_import_card(df, card_title='Feature importance',
                                                   max_display=15,
                                                   xaxis_title='mean(|SHAP value|)',
-                                                  card_height=None))
+                                                  card_height=None,
+                                                  margin_left=150))
     else:
         # Filter the data on the specified filter (categorical feature)
         categ_columns = [column for column in df.columns
@@ -1711,7 +1726,8 @@ def create_fltd_feat_import_cards(df, data_filter=None):
             cards_list.append(create_feat_import_card(filtered_df, card_title=card_title,
                                                       max_display=15,
                                                       xaxis_title='mean(|SHAP value|)',
-                                                      card_height=None))
+                                                      card_height=None,
+                                                      margin_left=150))
     return cards_list
 
 @app.callback(Output('feature_importance_cards', 'children'),
@@ -2004,7 +2020,8 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                                                 dash_height=None,
                                                 dash_width=None,
                                                 expected_value_ind_height=0,
-                                                output_ind_height=10)
+                                                output_ind_height=10,
+                                                margin_left=145)
 
 @app.callback([Output('final_output_graph', 'figure'),
                Output('curr_final_output', 'data')],

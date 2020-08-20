@@ -75,12 +75,13 @@ detail_analysis_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='RNN', value='RNN'),
                     dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
@@ -304,12 +305,13 @@ main_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='RNN', value='RNN'),
                     dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
@@ -500,12 +502,13 @@ performance_layout = html.Div([
         dcc.Dropdown(
             id='model_dropdown',
             options=[
-                dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                 dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                 dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                 dict(label='LSTM', value='LSTM'),
                 dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                 dict(label='RNN, embedded', value='RNN, embedded'),
+                dict(label='RNN', value='RNN'),
                 dict(label='MF1-LSTM', value='MF1-LSTM')
             ],
             placeholder='Choose a model',
@@ -778,12 +781,13 @@ feat_import_layout = html.Div([
             dcc.Dropdown(
                 id='model_dropdown',
                 options=[
-                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded, time aware', value='Bidir LSTM, embedded, time aware'),
+                    dict(label='Bidir LSTM, time aware', value='Bidir LSTM, time aware'),
                     dict(label='Bidir LSTM, embedded', value='Bidir LSTM, embedded'),
                     dict(label='LSTM', value='LSTM'),
                     dict(label='Bidir RNN, embedded, time aware', value='Bidir RNN, embedded, time aware'),
                     dict(label='RNN, embedded', value='RNN, embedded'),
+                    dict(label='RNN', value='RNN'),
                     dict(label='MF1-LSTM', value='MF1-LSTM')
                 ],
                 placeholder='Choose a model',
