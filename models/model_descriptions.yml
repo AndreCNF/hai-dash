@@ -20,5 +20,7 @@ embedding:
 delta_ts:
   uses delta_ts:
     Has time variation between samples in consideration, using that information as an additional feature.
+  integrates_in_model:
+    Incorporates time variation information inside the model architecture.
   no delta_ts:
     Doesn't directly consider time variation between samples.
