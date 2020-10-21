@@ -130,7 +130,7 @@ def load_dataset_callback(dataset_name, dataset_mod, model_file_name,
             stream_norm_stats = open(f'{data_path}norm_stats.yml', 'r')
         # Refreshing the data with a new edited sample
         df = apply_data_changes(new_data, dataset_store, id_column=id_column,
-                                ts_column=ts_column, label_column=label_column, 
+                                ts_column=ts_column, label_column=label_column,
                                 model_file_name=model_file_name,
                                 dataset_name=dataset_name)
         # Calculate the maximum sequence length
@@ -188,17 +188,17 @@ def load_model_callback(model_name, dataset_name):
             is_custom = False
         elif model_name == 'RNN, time aware':
             # Specify the model file name and class
-            model_file_name = 'rnn_one_hot_encoded_delta_ts_90dayswindow_0.5354valloss_21_08_2020_04_24.pth'
+            model_file_name = 'rnn_one_hot_encoded_delta_ts_90dayswindow_0.5354valloss_21_08_2020_04_24'
             model_class = Models.VanillaRNN
             is_custom = False
         elif model_name == 'RNN':
             # Specify the model file name and class
-            model_file_name = 'rnn_one_hot_encoded_90dayswindow_0.5445valloss_21_08_2020_04_34.pth'
+            model_file_name = 'rnn_one_hot_encoded_90dayswindow_0.5445valloss_21_08_2020_04_34'
             model_class = Models.VanillaRNN
             is_custom = False
         elif model_name == 'MF1-LSTM':
             # Specify the model file name and class
-            model_file_name = 'mf1lstm_pre_embedded_90dayswindow_0.6516valloss_07_07_2020_03_35'
+            model_file_name = 'mf1lstm_one_hot_encoded_90dayswindow_0.6009valloss_07_07_2020_03_46'
             model_class = Models.MF1LSTM
             is_custom = True
     elif dataset_name == 'Toy Example':
@@ -250,7 +250,7 @@ def load_model_callback(model_name, dataset_name):
     metrics_stream = open(f'{metrics_path}{subdata_path}individual_models/{model_file_name}.yml', 'r')
     metrics = yaml.load(metrics_stream, Loader=yaml.FullLoader)
     # Register all the hyperparameters
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                              ModelClass=model_class)
     model_args = inspect.getfullargspec(model.__init__).args[1:]
     hyperparams = dict([(param, str(getattr(model, param)))
@@ -336,38 +336,38 @@ def load_metrics(metrics_mod, metrics):
             suffix = None
         # Add each table row, corresponding to each metric
         rows.append(html.Tr([
-            html.Td(key), 
+            html.Td(key),
             html.Td(
                 du.visualization.indicator_plot(train_value, min_val=0, max_val=max_val,
-                                                type='bullet', 
+                                                type='bullet',
                                                 higher_is_better=higher_is_better,
                                                 background_color=layouts.colors['gray_background'],
                                                 dash_id=f'train_{key}_indicator',
                                                 font_color=layouts.colors['body_font_color'],
                                                 suffix=suffix, output_type='dash',
-                                                dash_height='1.5em', animate=True), 
+                                                dash_height='1.5em', animate=True),
                 style=dict(width='30%')
-            ), 
+            ),
             html.Td(
                 du.visualization.indicator_plot(val_value, min_val=0, max_val=max_val,
-                                                type='bullet', 
+                                                type='bullet',
                                                 higher_is_better=higher_is_better,
                                                 background_color=layouts.colors['gray_background'],
                                                 dash_id=f'val_{key}_indicator',
                                                 font_color=layouts.colors['body_font_color'],
                                                 suffix=suffix, output_type='dash',
-                                                dash_height='1.5em', animate=True), 
+                                                dash_height='1.5em', animate=True),
                 style=dict(width='30%')
-            ), 
+            ),
             html.Td(
                 du.visualization.indicator_plot(test_value, min_val=0, max_val=max_val,
-                                                type='bullet', 
+                                                type='bullet',
                                                 higher_is_better=higher_is_better,
                                                 background_color=layouts.colors['gray_background'],
                                                 dash_id=f'test_{key}_indicator',
                                                 font_color=layouts.colors['body_font_color'],
                                                 suffix=suffix, output_type='dash',
-                                                dash_height='1.5em', animate=True), 
+                                                dash_height='1.5em', animate=True),
                 style=dict(width='30%')
             )
         ]))
@@ -507,7 +507,7 @@ def update_patient_salient_feat_title(hovered_data, clicked_data, clicked_ts):
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
+            # Prevent the card from being updated on hover data if a
             # data point has been clicked recently
             raise PreventUpdate
         # Get the selected data point's subject ID
@@ -528,7 +528,7 @@ def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
+            # Prevent the card from being updated on hover data if a
             # data point has been clicked recently
             raise PreventUpdate
         # Get the selected data point's timestamp
@@ -549,7 +549,7 @@ def update_ts_feat_import_title(hovered_data, clicked_data, clicked_ts):
                State('ts_col_name_store', 'data'),
                State('label_col_name_store', 'data')])
 def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
-                           dataset_store, dataset_name, id_column, 
+                           dataset_store, dataset_name, id_column,
                            ts_column, label_column):
     global clicked_thrsh
     current_ts = time()
@@ -559,7 +559,7 @@ def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
     # Check whether the trigger was the hover or click event
     if callback_context.triggered[0]['prop_id'].split('.')[1] == 'hoverData':
         if (current_ts - clicked_ts) <= clicked_thrsh:
-            # Prevent the card from being updated on hover data if a 
+            # Prevent the card from being updated on hover data if a
             # data point has been clicked recently
             raise PreventUpdate
         # Get the selected data point's subject ID
@@ -580,7 +580,7 @@ def update_patient_outcome(hovered_data, clicked_data, clicked_ts,
         card_color = 'danger'
     else:
         if dataset_name == 'ALS':
-            outcome = 'Patient doesn\'t need NIV in the end'
+            outcome = 'Patient doesn\'t end using NIV'
         else:
             outcome = 'Patient survives'
         card_color = 'success'
@@ -600,21 +600,21 @@ def update_performance_preview(metrics_mod, metrics):
     # Accuracy plot
     acc = acc * 100
     acc_plot = du.visualization.indicator_plot(acc, min_val=0, max_val=100,
-                                               type='bullet', 
+                                               type='bullet',
                                                higher_is_better=True,
                                                background_color=layouts.colors['gray_background'],
                                                font_color=layouts.colors['body_font_color'],
                                                suffix='%', output_type='plotly')
     # AUC plot
     auc_plot = du.visualization.indicator_plot(auc, min_val=0, max_val=1,
-                                               type='bullet', 
+                                               type='bullet',
                                                higher_is_better=True,
                                                background_color=layouts.colors['gray_background'],
                                                font_color=layouts.colors['body_font_color'],
                                                suffix=None, output_type='plotly')
     # F1 plot
     f1_plot = du.visualization.indicator_plot(f1, min_val=0, max_val=1,
-                                              type='bullet', 
+                                              type='bullet',
                                               higher_is_better=True,
                                               background_color=layouts.colors['gray_background'],
                                               font_color=layouts.colors['body_font_color'],
@@ -626,7 +626,7 @@ def update_performance_preview(metrics_mod, metrics):
               [State('model_metrics', 'data')])
 def render_auc_gauge(metrics_mod, metrics):
     return du.visualization.indicator_plot(metrics['test']['AUC'], min_val=0, max_val=1,
-                                           type='gauge', 
+                                           type='gauge',
                                            background_color=layouts.colors['gray_background'],
                                            font_color=layouts.colors['header_font_color'],
                                            font_size=20,
@@ -639,7 +639,7 @@ def render_auc_gauge(metrics_mod, metrics):
               [State('dataset_store', 'data'),
                State('norm_stats_store', 'data'),
                State('label_col_name_store', 'data')])
-def update_dataset_preview(dataset_mod, norm_stats_mod, label_column_mod, 
+def update_dataset_preview(dataset_mod, norm_stats_mod, label_column_mod,
                            dataset_store, norm_stats, label_column):
     if norm_stats is None or label_column is None:
         # Don't update the plot if any of the required inputs have not been defined yet
@@ -693,7 +693,7 @@ def create_num_patients_card(df, id_column, card_height=None, card_width=None, f
     n_patients = df[id_column].nunique()
     # Get the indicator plot
     num_patients_plot = du.visualization.indicator_plot(n_patients,
-                                                        show_graph=False, 
+                                                        show_graph=False,
                                                         background_color=layouts.colors['gray_background'],
                                                         font_color=layouts.colors['header_font_color'],
                                                         font_size=font_size,
@@ -722,7 +722,7 @@ def create_num_feat_card(df, card_height=None, card_width=None, font_size=20):
     n_features = len(feature_names)
     # Get the indicator plot
     num_features_plot = du.visualization.indicator_plot(n_features,
-                                                        show_graph=False, 
+                                                        show_graph=False,
                                                         background_color=layouts.colors['gray_background'],
                                                         font_color=layouts.colors['header_font_color'],
                                                         font_size=font_size,
@@ -747,7 +747,7 @@ def create_num_rows_card(df, card_height=None, card_width=None, font_size=20):
     n_rows = len(df)
     # Get the indicator plot
     num_rows_plot = du.visualization.indicator_plot(n_rows,
-                                                    show_graph=False, 
+                                                    show_graph=False,
                                                     background_color=layouts.colors['gray_background'],
                                                     font_color=layouts.colors['header_font_color'],
                                                     font_size=font_size,
@@ -781,7 +781,7 @@ def create_num_data_points_card(df, card_height=None, card_width=None, font_size
     n_data_points = n_rows * n_columns
     # Get the indicator plot
     num_data_points_plot = du.visualization.indicator_plot(n_data_points,
-                                                           show_graph=False, 
+                                                           show_graph=False,
                                                            background_color=layouts.colors['gray_background'],
                                                            font_color=layouts.colors['header_font_color'],
                                                            font_size=font_size,
@@ -810,7 +810,7 @@ def create_dataset_size_card(df, card_height=None, card_width=None, font_size=20
     data_size = int(data_size / pow(10, 6))
     # Get the indicator plot
     data_size_plot = du.visualization.indicator_plot(data_size,
-                                                     show_graph=False, 
+                                                     show_graph=False,
                                                      background_color=layouts.colors['gray_background'],
                                                      font_color=layouts.colors['header_font_color'],
                                                      font_size=font_size,
@@ -836,13 +836,13 @@ def create_avg_seq_len_card(df, id_column, ts_column, card_height=None, card_wid
     avg_seq_len = int(df.groupby(id_column)[ts_column].count().mean())
     # Get the indicator plot
     num_avg_seq_len_plot = du.visualization.indicator_plot(avg_seq_len,
-                                                        show_graph=False, 
+                                                        show_graph=False,
                                                         background_color=layouts.colors['gray_background'],
                                                         font_color=layouts.colors['header_font_color'],
                                                         font_size=font_size,
                                                         output_type='dash',
                                                         dash_height='5em')
-    # 
+    #
     # Create the card
     num_avg_seq_len_card = dbc.Card([
         dbc.CardBody([
@@ -864,7 +864,7 @@ def create_seq_len_hist_card(df, id_column, ts_column, selected_feat='All', card
         # Configure the plot
         data = [
             go.Histogram(
-                x=seq_len, 
+                x=seq_len,
                 y=seq_len.index,
                 name='All'
             )
@@ -895,7 +895,7 @@ def create_seq_len_hist_card(df, id_column, ts_column, selected_feat='All', card
             # Add the histogram
             data.append(
                 go.Histogram(
-                    x=seq_len, 
+                    x=seq_len,
                     y=seq_len.index,
                     histnorm='percent',
                     name=f'{selected_feat} = {val}'
@@ -966,7 +966,7 @@ def create_time_freq_hist_card(df, id_column, ts_column, selected_feat='All', ca
         # Configure the plot
         data = [
             go.Histogram(
-                x=time_var, 
+                x=time_var,
                 y=time_var.index,
                 name='All'
             )
@@ -997,7 +997,7 @@ def create_time_freq_hist_card(df, id_column, ts_column, selected_feat='All', ca
             # Add the histogram
             data.append(
                 go.Histogram(
-                    x=time_var, 
+                    x=time_var,
                     y=time_var.index,
                     histnorm='percent',
                     name=f'{selected_feat} = {val}'
@@ -1091,13 +1091,13 @@ def update_dataset_size_tab(dataset_mod, seq_len_selected_feat, time_freq_select
                                                   card_width=None, font_size=40))
     # Add an histogram with the sequence lengths info
     plot_cards_list.append(create_seq_len_hist_card(df, id_column, ts_column,
-                                                    selected_feat=seq_len_selected_feat, 
-                                                    card_height='25em', card_width=None, 
+                                                    selected_feat=seq_len_selected_feat,
+                                                    card_height='25em', card_width=None,
                                                     font_size=14))
     # Add an histogram with the frequency of time events
     plot_cards_list.append(create_time_freq_hist_card(df, id_column, ts_column,
-                                                      selected_feat=time_freq_selected_feat, 
-                                                      card_height='25em', card_width=None, 
+                                                      selected_feat=time_freq_selected_feat,
+                                                      card_height='25em', card_width=None,
                                                       font_size=14))
     return num_cards_list, plot_cards_list
 
@@ -1110,14 +1110,14 @@ def create_age_hist_card(df, id_column, norm_stats, selected_feat='All', card_he
     if selected_feat == 'All' or selected_feat == None:
         # Denormalize the age
         tmp_df = df.copy()
-        tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std'] 
+        tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std']
                                + norm_stats['age_at_onset']['mean'])
         # Find patients' age
         age = tmp_df.groupby(id_column).first().age_at_onset
         # Configure the plot
         data = [
             go.Histogram(
-                x=age, 
+                x=age,
                 y=age.index,
                 name='All'
             )
@@ -1144,14 +1144,14 @@ def create_age_hist_card(df, id_column, norm_stats, selected_feat='All', card_he
             # Get the data that has the current value
             tmp_df = df[df[selected_feat] == val]
             # Denormalize the age
-            tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std'] 
+            tmp_df.age_at_onset = (tmp_df.age_at_onset * norm_stats['age_at_onset']['std']
                                    + norm_stats['age_at_onset']['mean'])
             # Find patients' age
             age = tmp_df.groupby(id_column).first().age_at_onset
             # Add the histogram
             data.append(
                 go.Histogram(
-                    x=age, 
+                    x=age,
                     y=age.index,
                     histnorm='percent',
                     name=f'{selected_feat} = {val}'
@@ -1224,7 +1224,7 @@ def create_gender_bar_card(df, id_column, selected_feat='All', card_height=None,
         # Configure the plot
         data = [
             go.Bar(
-                x=gender_count.index, 
+                x=gender_count.index,
                 y=gender_count.gender,
                 name='All'
             )
@@ -1255,7 +1255,7 @@ def create_gender_bar_card(df, id_column, selected_feat='All', card_height=None,
             # Add the histogram
             data.append(
                 go.Bar(
-                    x=gender_count.index, 
+                    x=gender_count.index,
                     y=gender_count.gender,
                     name=f'{selected_feat} = {val}'
                 )
@@ -1315,7 +1315,7 @@ def create_gender_bar_card(df, id_column, selected_feat='All', card_height=None,
     ], style=style)
     return gender_bar_card
 
-def create_label_per_sample_card(df, id_column, label_column, selected_feat='All', 
+def create_label_per_sample_card(df, id_column, label_column, selected_feat='All',
                                  card_height=None, card_width=None, font_size=20):
     style = dict()
     if card_height is not None:
@@ -1328,7 +1328,7 @@ def create_label_per_sample_card(df, id_column, label_column, selected_feat='All
         # Configure the plot
         data = [
             go.Bar(
-                x=label_count.index, 
+                x=label_count.index,
                 y=label_count[label_column],
                 name='All'
             )
@@ -1359,7 +1359,7 @@ def create_label_per_sample_card(df, id_column, label_column, selected_feat='All
             # Add the histogram
             data.append(
                 go.Bar(
-                    x=label_count.index, 
+                    x=label_count.index,
                     y=label_count[label_column],
                     name=f'{selected_feat} = {val}'
                 )
@@ -1417,7 +1417,7 @@ def create_label_per_sample_card(df, id_column, label_column, selected_feat='All
     ], style=style)
     return label_per_sample_bar_card
 
-def create_label_per_patient_card(df, id_column, label_column, selected_feat='All', 
+def create_label_per_patient_card(df, id_column, label_column, selected_feat='All',
                                   card_height=None, card_width=None, font_size=20):
     style = dict()
     if card_height is not None:
@@ -1430,7 +1430,7 @@ def create_label_per_patient_card(df, id_column, label_column, selected_feat='Al
         # Configure the plot
         data = [
             go.Bar(
-                x=label_count.index, 
+                x=label_count.index,
                 y=label_count[label_column],
                 name='All'
             )
@@ -1461,7 +1461,7 @@ def create_label_per_patient_card(df, id_column, label_column, selected_feat='Al
             # Add the histogram
             data.append(
                 go.Bar(
-                    x=label_count.index, 
+                    x=label_count.index,
                     y=label_count[label_column],
                     name=f'{selected_feat} = {val}'
                 )
@@ -1538,23 +1538,23 @@ def update_dataset_demographics_tab(dataset_mod, age_selected_feat, gender_selec
     df = pd.DataFrame(dataset_store)
     # Add an histogram with the age distribution
     cards_list.append(create_age_hist_card(df, id_column, norm_stats,
-                                           selected_feat=age_selected_feat, 
-                                           card_height='25em', card_width=None, 
+                                           selected_feat=age_selected_feat,
+                                           card_height='25em', card_width=None,
                                            font_size=14))
     # Add a bar plot with the gender balance
     cards_list.append(create_gender_bar_card(df, id_column,
-                                             selected_feat=gender_selected_feat, 
-                                             card_height='25em', card_width=None, 
+                                             selected_feat=gender_selected_feat,
+                                             card_height='25em', card_width=None,
                                              font_size=14))
     # Add a bar plot with the label activations per sample
     cards_list.append(create_label_per_sample_card(df, id_column, label_column,
-                                                   selected_feat=label_per_sample_selected_feat, 
-                                                   card_height='25em', card_width=None, 
+                                                   selected_feat=label_per_sample_selected_feat,
+                                                   card_height='25em', card_width=None,
                                                    font_size=14))
     # Add a bar plot with the label activations per patient
     cards_list.append(create_label_per_patient_card(df, id_column, label_column,
-                                                    selected_feat=label_per_patient_selected_feat, 
-                                                    card_height='25em', card_width=None, 
+                                                    selected_feat=label_per_patient_selected_feat,
+                                                    card_height='25em', card_width=None,
                                                     font_size=14))
     return cards_list
 
@@ -1565,14 +1565,14 @@ def create_dataset_descr_card(df, dataset_name, card_height=None, card_width=Non
     if card_width is not None:
         style['width'] = card_width
     if dataset_name == 'ALS':
-        description =  '''Portuguese ALS dataset, a collection of data from Amyotrophic Lateral Sclerosis (ALS) 
-                          patients, collected between 1995 and 2018 in the Translational Clinic Physiology Unit, 
-                          Hospital de Santa Maria, IMM, Lisbon. It has a rich-ness of information, consisting of 
-                          healthcare multivariate time series, with a selected subset of features that was 
-                          handpicked by clinicians. The dataset containes a variety of feature types, both static 
-                          and temporal, categorical and numerical, and from multiple topics, ranging from 
-                          demographics and family history to genetic and respiratory data. A particularly 
-                          relevant column is the date of Non-Invasive Ventilation (NIV), as it is the source from 
+        description =  '''Portuguese ALS dataset, a collection of data from Amyotrophic Lateral Sclerosis (ALS)
+                          patients, collected between 1995 and 2018 in the Translational Clinic Physiology Unit,
+                          Hospital de Santa Maria, IMM, Lisbon. It has a rich-ness of information, consisting of
+                          healthcare multivariate time series, with a selected subset of features that was
+                          handpicked by clinicians. The dataset containes a variety of feature types, both static
+                          and temporal, categorical and numerical, and from multiple topics, ranging from
+                          demographics and family history to genetic and respiratory data. A particularly
+                          relevant column is the date of Non-Invasive Ventilation (NIV), as it is the source from
                           which we extract the label.'''
     elif dataset_name == 'Toy Example':
         description =  '''Just a toy example'''
@@ -1640,7 +1640,7 @@ def update_dataset_info_tab(dataset_mod, dataset_store, dataset_name):
     # Reconvert the dataframe to Pandas
     df = pd.DataFrame(dataset_store)
     # Add a description of the dataset
-    cards_list.append(create_dataset_descr_card(df, dataset_name, card_height=None, 
+    cards_list.append(create_dataset_descr_card(df, dataset_name, card_height=None,
                                                 card_width=None))
     # Add a table with the types of features present
     cards_list.append(create_feat_types_card(df, card_height=None, card_width=None))
@@ -1775,7 +1775,7 @@ def output_feat_import_page_cards(data_filter, dataset_store):
     return cards_list
 
 @cache.memoize(timeout=TIMEOUT)
-def update_det_analysis_preview(dataset_store, model_file_name, id_column, 
+def update_det_analysis_preview(dataset_store, model_file_name, id_column,
                                 ts_column, label_column, is_custom,
                                 total_length, dataset_name):
     global models_path
@@ -1796,7 +1796,7 @@ def update_det_analysis_preview(dataset_store, model_file_name, id_column,
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -1813,12 +1813,12 @@ def update_det_analysis_preview(dataset_store, model_file_name, id_column,
     tmp_df = tmp_df[tmp_df[id_column].isin(ids)]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
     interpreter = ModelInterpreter(model, tmp_df, id_column_name=id_column, inst_column_name=ts_column,
-                                   label_column_name=label_column, fast_calc=True, 
+                                   label_column_name=label_column, fast_calc=True,
                                    padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7,
                                    total_length=total_length)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
-    return interpreter.instance_importance_plot(interpreter.test_data, 
+    return interpreter.instance_importance_plot(interpreter.test_data,
                                                 interpreter.inst_scores,
                                                 labels=interpreter.test_labels,
                                                 get_fig_obj=True,
@@ -1846,19 +1846,19 @@ def update_det_analysis_preview(dataset_store, model_file_name, id_column,
                State('is_custom_store', 'data'),
                State('total_length_store', 'data'),
                State('dataset_name_div', 'children')])
-def update_det_analysis_preview_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
-                                         label_column_mod, is_custom_mod, total_length_mod, 
-                                         dataset_store, model_file_name, id_column, ts_column, 
+def update_det_analysis_preview_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod,
+                                         label_column_mod, is_custom_mod, total_length_mod,
+                                         dataset_store, model_file_name, id_column, ts_column,
                                          label_column, is_custom, total_length, dataset_name):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
-    return update_det_analysis_preview(dataset_store, model_file_name, id_column, 
+    return update_det_analysis_preview(dataset_store, model_file_name, id_column,
                                        ts_column, label_column, is_custom,
                                        total_length, dataset_name)
 
 @cache.memoize(timeout=TIMEOUT)
-def update_full_inst_import(dataset_store, model_file_name, id_column, 
+def update_full_inst_import(dataset_store, model_file_name, id_column,
                             ts_column, label_column, is_custom,
                             total_length, dataset_name):
     global models_path
@@ -1879,7 +1879,7 @@ def update_full_inst_import(dataset_store, model_file_name, id_column,
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -1892,12 +1892,12 @@ def update_full_inst_import(dataset_store, model_file_name, id_column,
     tmp_df = tmp_df[column_names]
     # Calculate the instance importance scores (it should be fast enough; otherwise try to do it previously and integrate on the dataframe)
     interpreter = ModelInterpreter(model, tmp_df, id_column_name=id_column, inst_column_name=ts_column,
-                                   label_column_name=label_column, fast_calc=True, 
+                                   label_column_name=label_column, fast_calc=True,
                                    padding_value=padding_value, is_custom=is_custom, occlusion_wgt=0.7,
                                    total_length=total_length)
     interpreter.interpret_model(instance_importance=True, feature_importance=False)
     # Get the instance importance plot
-    return interpreter.instance_importance_plot(interpreter.test_data, 
+    return interpreter.instance_importance_plot(interpreter.test_data,
                                                 interpreter.inst_scores,
                                                 labels=interpreter.test_labels,
                                                 get_fig_obj=True,
@@ -1924,14 +1924,14 @@ def update_full_inst_import(dataset_store, model_file_name, id_column,
                State('is_custom_store', 'data'),
                State('total_length_store', 'data'),
                State('dataset_name_div', 'children')])
-def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod, 
-                                     label_column_mod, is_custom_mod, dataset_store, 
-                                     model_file_name, id_column, ts_column, label_column, 
+def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_column_mod,
+                                     label_column_mod, is_custom_mod, dataset_store,
+                                     model_file_name, id_column, ts_column, label_column,
                                      is_custom, total_length, dataset_name):
     if id_column is None or ts_column is None or label_column is None or total_length is None:
         # Don't update the plot if any of the required column names have not been defined yet
         raise PreventUpdate
-    return update_full_inst_import(dataset_store, model_file_name, id_column, 
+    return update_full_inst_import(dataset_store, model_file_name, id_column,
                                    ts_column, label_column, is_custom,
                                    total_length, dataset_name)
 
@@ -1946,8 +1946,8 @@ def update_full_inst_import_callback(dataset_mod, model_mod, id_column_mod, ts_c
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children'),
                State('curr_subject', 'data')])
-def update_most_salient_features(hovered_data, clicked_data, dataset_mod, 
-                                 model_name, dataset_store, id_column, 
+def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
+                                 model_name, dataset_store, id_column,
                                  clicked_ts, hovered_ts, prev_subject):
     global clicked_thrsh
     clicked_ts = int(clicked_ts)
@@ -1979,7 +1979,7 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                                                                    background_color=layouts.colors['gray_background'],
                                                                    increasing_color='danger',
                                                                    decreasing_color='primary',
-                                                                   font_family='Roboto', 
+                                                                   font_family='Roboto',
                                                                    font_size=14,
                                                                    font_color=layouts.colors['body_font_color'],
                                                                    dash_height=None,
@@ -1996,8 +1996,8 @@ def update_most_salient_features(hovered_data, clicked_data, dataset_mod,
                State('expected_value_store', 'data'),
                State('clicked_ts', 'children'),
                State('hovered_ts', 'children')])
-def update_ts_feat_import(hovered_data, clicked_data, dataset_mod, 
-                          model_name, dataset_store, id_column, 
+def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
+                          model_name, dataset_store, id_column,
                           exp_val, clicked_ts, hovered_ts):
     global clicked_thrsh
     clicked_ts = int(clicked_ts)
@@ -2026,12 +2026,12 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
     features = filtered_df[feature_names].to_numpy()
     # Get the instance importance plot
     return du.visualization.shap_waterfall_plot(exp_val, shap_values, features, feature_names,
-                                                max_display=6, 
+                                                max_display=6,
                                                 background_color=layouts.colors['gray_background'],
-                                                line_color=layouts.colors['body_font_color'], 
+                                                line_color=layouts.colors['body_font_color'],
                                                 increasing_color=layouts.colors['red'],
                                                 decreasing_color=layouts.colors['blue'],
-                                                font_family='Roboto', 
+                                                font_family='Roboto',
                                                 font_size=14,
                                                 font_color=layouts.colors['body_font_color'],
                                                 output_type='plotly',
@@ -2055,7 +2055,7 @@ def update_ts_feat_import(hovered_data, clicked_data, dataset_mod,
                State('hovered_ts', 'children'),
                State('curr_final_output', 'data'),
                State('dataset_name_div', 'children')])
-def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, model_file_name, 
+def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, model_file_name,
                         model_name, id_column, ts_column, clicked_ts, hovered_ts, prev_output,
                         dataset_name):
     global is_custom
@@ -2080,7 +2080,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, 
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                              ModelClass=model_class)
     # Guarantee that the model is in evaluation mode, so as to deactivate dropout
     model.eval()
@@ -2115,7 +2115,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, 
         delta_ref = None
         show_delta = False
     # Plot the updated final output
-    output_plot = du.visualization.indicator_plot(final_output, type='bullet', 
+    output_plot = du.visualization.indicator_plot(final_output, type='bullet',
                                                   higher_is_better=False,
                                                   show_delta=show_delta,
                                                   ref_value=delta_ref,
@@ -2126,7 +2126,7 @@ def update_final_output(dataset_mod, hovered_data, clicked_data, dataset_store, 
     return output_plot, final_output
 
 # Data editing
-def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_column, 
+def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_column,
                        model_file_name, dataset_name):
     global is_custom
     global padding_value
@@ -2184,17 +2184,17 @@ def apply_data_changes(new_data, dataset_store, id_column, ts_column, label_colu
         else:
             raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
         # Load the model
-        model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+        model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                                  ModelClass=model_class)
         # Guarantee that the model is in evaluation mode, so as to deactivate dropout
         model.eval()
         # Recalculate the SHAP values
         interpreter = ModelInterpreter(model, id_column_name=id_column, inst_column_name=ts_column,
-                                       label_column_name=label_column, fast_calc=True, 
+                                       label_column_name=label_column, fast_calc=True,
                                        padding_value=padding_value, is_custom=is_custom,
                                        seq_len_dict=seq_len_dict,
                                        feat_names=feature_names+[label_column])
-        _ = interpreter.interpret_model(test_data=features, test_labels=labels, 
+        _ = interpreter.interpret_model(test_data=features, test_labels=labels,
                                         instance_importance=False, feature_importance='shap')
         # Join the updated SHAP values to the dataframe
         if len(labels.shape) == 1:
@@ -2228,7 +2228,7 @@ def calc_exp_val(dataset_mod, model_mod, model_file_name, dataset_name):
     else:
         raise Exception(f'ERROR: The HAI dashboarded isn\'t currently suited to load the dataset named {dataset_name}.')
     # Load the model
-    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth', 
+    model = du.deep_learning.load_checkpoint(filepath=f'{models_path}{subdata_path}{model_file_name}.pth',
                                              ModelClass=model_class)
     if 'mf1lstm' in model_file_name:
         # Account for the `delta_ts` column, which isn't directly used as a feature
