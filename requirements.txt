@@ -17,7 +17,7 @@ dash-renderer==1.6.0
 dash-table==4.9.0
 dask==2.22.0
 -e git+https://github.com/AndreCNF/data-utils.git@91455bbd0768377d33253c5e573f538143d3fe48#egg=data_utils
-distributed==2.22.0
+distributed==2021.10.0
 docutils==0.16
 everett==1.0.2
 falcon==2.0.0
