@@ -94,7 +94,7 @@ tornado==6.0.4
 tqdm==4.43.0
 urllib3==1.25.10
 websocket-client==0.57.0
-Werkzeug==1.0.0
+Werkzeug==2.2.3
 wrapt==1.12.1
 wurlitzer==2.0.1
 yaspin==0.15.0
